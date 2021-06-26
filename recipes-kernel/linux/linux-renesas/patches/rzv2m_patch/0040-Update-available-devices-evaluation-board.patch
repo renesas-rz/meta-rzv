@@ -1,0 +1,159 @@
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+index 596da09..d13e5e2 100755
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+@@ -13,6 +13,13 @@
+     model = "RZ/V2M";
+     compatible = "rdk,rdk", "renesas,r8arzv2m";
+ 
++    backlight {
++        compatible = "pwm-backlight";
++        pwms = <&pwm0 0 5000000>;
++        brightness-levels = <0 4 8 16 32 64 128 255>;
++        default-brightness-level = <6>;
++    };
++
+     aliases {
+         serial0 = &uart0;
+     };
+@@ -152,9 +159,16 @@
+             };
+         };
+     };
++   clock-generator@68 {
++       compatible = "idt,9fgv0241";
++       reg = <0x68>;
++    };
+ };
+ 
+-
++&i2c2 {
++    clock-frequency = <100000>;
++    status = "okay";
++};
+ 
+ &uart0 {
+     status = "okay";
+@@ -172,98 +186,98 @@
+     status = "okay";
+ };
+ 
+-&pwm0 {
++&pwm8 {
+     status = "okay";
+ };
+ 
+-&pwm1 {
++&pwm9 {
+     status = "okay";
+ };
+ 
+-&pwm2 {
++&pwm10 {
+     status = "okay";
+ };
+ 
+-&pwm3 {
++&pwm11 {
+     status = "okay";
+ };
+ 
+-&pwm4 {
++&pwm12 {
+     status = "okay";
+ };
+ 
+-&pwm5 {
++&pwm13 {
+     status = "okay";
+ };
+ 
+-&pwm6 {
++&pwm14 {
+     status = "okay";
+ };
+ 
+-&pwm7 {
++&pwm15 {
+     status = "okay";
+ };
+ 
+-&tim16 {
++&tim8 {
+     status = "okay";
+ };
+ 
+-&tim17 {
++&tim9 {
+     status = "okay";
+ };
+ 
+-&tim18 {
++&tim10 {
+     status = "okay";
+ };
+ 
+-&tim19 {
++&tim11 {
+     status = "okay";
+ };
+ 
+-&tim20 {
++&tim12 {
+     status = "okay";
+ };
+ 
+-&tim21 {
++&tim13 {
+     status = "okay";
+ };
+ 
+-&tim22 {
++&tim14 {
+     status = "okay";
+ };
+ 
+-&tim23 {
++&tim15 {
+     status = "okay";
+ };
+ 
+-&tim24 {
++&tim16 {
+     status = "okay";
+ };
+ 
+-&tim25 {
++&tim17 {
+     status = "okay";
+ };
+ 
+-&tim26 {
++&tim18 {
+     status = "okay";
+ };
+ 
+-&tim27 {
++&tim19 {
+     status = "okay";
+ };
+ 
+-&tim28 {
++&tim20 {
+     status = "okay";
+ };
+ 
+-&tim29 {
++&tim21 {
+     status = "okay";
+ };
+ 
+-&tim30 {
++&tim22 {
+     status = "okay";
+ };
+ 
+-&tim31 {
++&tim23 {
+     status = "okay";
+ };

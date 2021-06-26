@@ -1,0 +1,47 @@
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+index ab4ec1a..998ed1a 100755
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+@@ -11,7 +11,7 @@
+ 
+ / {
+     model = "RZ/V2M";
+-    compatible = "renesas,evaluation-board", "renesas,r9a09g011gbg";
++    compatible = "rdk,rdk", "renesas,r8arzv2m";
+ 
+     aliases {
+         serial0 = &uart0;
+@@ -81,8 +81,6 @@
+         regulator-name = "SDHI0 VccQ";
+         regulator-min-microvolt = <1800000>;
+         regulator-max-microvolt = <3300000>;
+-
+-/*      gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;   */
+         gpios-states = <1>;
+         states = <3300000 1
+               1800000 0>;
+@@ -112,11 +110,6 @@
+     clock-frequency = <48000000>;
+ };
+ 
+-&extal_clk {
+-    clock-frequency = <48000000>;
+-};
+-
+-
+ &xhci0 {
+     status = "okay";
+ };
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
+index 43b4df0..65b7f72 100755
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
+@@ -72,7 +72,7 @@
+     imclk: imclk@200M {
+         #clock-cells = <0>;
+         compatible = "fixed-clock";
+-        clock-frequency = <0>;
++        clock-frequency = <200000000>;
+     };
+     pclk: pclk@100M {
+         #clock-cells = <0>;

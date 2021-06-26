@@ -1,0 +1,19 @@
+diff --git a/arch/arm64/Kconfig.platforms b/arch/arm64/Kconfig.platforms
+old mode 100644
+new mode 100755
+index b624cce..14a68bb
+--- a/arch/arm64/Kconfig.platforms
++++ b/arch/arm64/Kconfig.platforms
+@@ -207,6 +207,12 @@ config ARCH_R8A774C0
+ 	help
+ 	  This enables support for the Renesas RZ/G2E SoC.
+ 
++config ARCH_R9A09G011GBG
++	bool "Renesas RZ/V2M SoC Platform"
++	depends on ARCH_RENESAS
++	help
++	  This enables support for the Renesas RZ/V2M SoC.
++
+ config ARCH_R8A7795
+ 	bool "Renesas R-Car H3 SoC Platform"
+ 	depends on ARCH_RENESAS

@@ -1,0 +1,15 @@
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+index c96582c..afab61a 100755
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+@@ -209,10 +209,6 @@
+     status = "okay";
+ };
+ 
+-&pwm15 {
+-    status = "okay";
+-};
+-
+ &tim8 {
+     status = "okay";
+ };

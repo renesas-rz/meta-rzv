@@ -1,0 +1,30 @@
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+index d7e4519..31d462c 100755
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+@@ -22,10 +22,10 @@
+ 		stdout-path = "serial0:115200n8";
+ 	};
+ 
+-	memory@10000000 {
++	memory@08000000 {
+ 		device_type = "memory";
+ 		/* first 256MB is reserved for secure area. */
+-		reg = <0x00000000 0x10000000 0x0 0x70000000>;
++		reg = <0x00000000 0x08000000 0x0 0x78000000>;
+ 	};
+ 
+ 	reserved-memory {
+diff --git a/arch/arm64/kernel/head.S b/arch/arm64/kernel/head.S
+index f29372e..0a54a8e 100755
+--- a/arch/arm64/kernel/head.S
++++ b/arch/arm64/kernel/head.S
+@@ -114,7 +114,7 @@ pe_header:
+ 	 *  x19/x20    __primary_switch()         callee preserved temp registers
+ 	 */
+ ENTRY(stext)
+-	mov	x0, #0x10000000
++	mov	x0, #0x08000000
+ //	mov	x4, #0x40007fc0
+ 	bl	preserve_boot_args
+ 	bl	el3_setup			// Drop to EL2, w0=cpu_boot_mode

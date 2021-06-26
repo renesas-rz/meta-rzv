@@ -1,0 +1,4628 @@
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+index 886051b..94acafe 100755
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+@@ -47,6 +47,13 @@
+ 			reusable;
+ 			reg = <0x00000000 0x28000000 0x0 0x08000000>;
+ 		};
++
++		v4l2_reserved: v4l2-DRP_buf@0 {
++			compatible = "shared-dma-pool";
++			reusable;
++			reg = <0x0 0x30000000 0x0 0x08000000>; //128MiB
++			label = "image_buf0";
++		};
+ #if 0
+ 		/* device specific region for contiguous allocations */
+ 		mmp_reserved: linux,multimedia {
+@@ -57,6 +64,15 @@
+ #endif
+ 	};
+ 
++	udmabuf@0 {
++		compatible = "ikwzm,udmabuf-0.10.a";
++		device-name = "udmabuf0";
++		minor-number = <0>;
++		size = <0x08000000>; // 128MiB
++		dma-coherent;
++		memory-region = <&v4l2_reserved>;
++	};
++
+ 	mmngr {
+ 		compatible = "renesas,mmngr";
+ /*		memory-region = <&mmp_reserved>; */
+diff --git a/arch/arm64/configs/defconfig b/arch/arm64/configs/defconfig
+index 26ad1fb..a569da3 100755
+--- a/arch/arm64/configs/defconfig
++++ b/arch/arm64/configs/defconfig
+@@ -389,3 +389,4 @@ CONFIG_DEVFREQ_GOV_USERSPACE=y
+ CONFIG_DEVFREQ_GOV_PASSIVE=y
+ CONFIG_RENESAS_MFIS_ECC=y
+ CONFIG_E1000E=y
++CONFIG_U_DMA_BUF=y
+diff --git a/drivers/Kconfig b/drivers/Kconfig
+index ab4d439..b06aaeb 100644
+--- a/drivers/Kconfig
++++ b/drivers/Kconfig
+@@ -219,4 +219,6 @@ source "drivers/siox/Kconfig"
+ 
+ source "drivers/slimbus/Kconfig"
+ 
++source "drivers/udmabuf/Kconfig"
++
+ endmenu
+diff --git a/drivers/Makefile b/drivers/Makefile
+index 578f469..d384719 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -186,3 +186,5 @@ obj-$(CONFIG_MULTIPLEXER)	+= mux/
+ obj-$(CONFIG_UNISYS_VISORBUS)	+= visorbus/
+ obj-$(CONFIG_SIOX)		+= siox/
+ obj-$(CONFIG_GNSS)		+= gnss/
++obj-$(CONFIG_U_DMA_BUF)	+= udmabuf/
++
+diff --git b/drivers/udmabuf/Kconfig b/drivers/udmabuf/Kconfig
+new file mode 100644
+index 0000000..d86b23a
+--- /dev/null
++++ b/drivers/udmabuf/Kconfig
+@@ -0,0 +1,19 @@
++#
++# udmabuf
++#
++
++menu "User space mappable DMA Buffer"
++
++config U_DMA_BUF
++	tristate "User space mappable DMA Buffer"
++	default m
++	depends on OF
++	---help---
++	  Enable this to allow the udmabuf to be built.
++	  udmabuf is a Linux device driver that allocates contiguous
++	  memory blocks in the kernel space as DMA buffers and
++	  makes them available from the user space.
++
++	  If you don't know what to do here, say N.
++
++endmenu
+diff --git b/drivers/udmabuf/LICENSE b/drivers/udmabuf/LICENSE
+new file mode 100644
+index 0000000..7536249
+--- /dev/null
++++ b/drivers/udmabuf/LICENSE
+@@ -0,0 +1,25 @@
++BSD 2-Clause License
++
++Copyright (c) 2015-2017, Ichiro Kawazome
++All rights reserved.
++
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++* Redistributions of source code must retain the above copyright notice, this
++  list of conditions and the following disclaimer.
++
++* Redistributions in binary form must reproduce the above copyright notice,
++  this list of conditions and the following disclaimer in the documentation
++  and/or other materials provided with the distribution.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
++DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
++FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
++SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
++CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
++OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+diff --git b/drivers/udmabuf/Makefile b/drivers/udmabuf/Makefile
+new file mode 100644
+index 0000000..fc96ae2
+--- /dev/null
++++ b/drivers/udmabuf/Makefile
+@@ -0,0 +1,3 @@
++u-dma-buf-obj           := udmabuf.o
++obj-$(CONFIG_U_DMA_BUF) += $(u-dma-buf-obj)
++
+diff --git b/drivers/udmabuf/Readme.ja.md b/drivers/udmabuf/Readme.ja.md
+new file mode 100644
+index 0000000..9ab9b2d
+--- /dev/null
++++ b/drivers/udmabuf/Readme.ja.md
+@@ -0,0 +1,1383 @@
++udmabuf(User space mappable DMA Buffer)
++=======================================
++
++
++
++
++
++
++
++# はじめに
++
++
++
++## udmabufとは
++
++
++udmabuf はLinux のカーネル空間に連続したメモリ領域をDMAバッファとして確保し、ユーザー空間からアクセス可能にするためのデバイスドライバです。主にUIO(User space I/O)を使ってユーザー空間でデバイスドライバを動かす場合のDMAバッファを提供します。
++
++ユーザー空間でudmabufで確保したDMAバッファを利用する際は、デバイスファイル(/dev/udmabuf0など)をopen()して、mmap()でユーザー空間にマッピングするか、read()またはwrite()で行います。
++
++openする際にO_SYNCフラグをセットすることによりCPUキャッシュを無効にすることが出来ます。また、CPUキャッシュを有効にした状態で、CPUキャッシュのフラッシュとインヴァリディエートを行うことが出来ます(ARMアーキテクチャのみ)。
++
++/sys/class/udmabuf/udmabuf0/phys_addr を読むことにより、DMAバッファの物理空間上のアドレスを知ることが出来ます。
++
++udmabufのDMAバッファの大きさやデバイスのマイナー番号は、デバイスドライバのロード時(insmodによるロードなど)に指定できます。またプラットフォームによってはデバイスツリーに記述しておくこともできます。
++
++
++## 構成
++
++
++
++![図1 構成](./udmabuf1.jpg "図1 構成")
++
++図1 構成
++
++<br />
++
++
++
++
++## 対応プラットフォーム
++
++
++* OS : Linux Kernel Version 3.6 - 3.8, 3.18, 4.4, 4.8, 4.12, 4.14, 4.19    
++(私が動作を確認したのは3.18, 4.4, 4.8, 4.12, 4.14, 4.19です).
++* CPU: ARM Cortex-A9 (Xilinx ZYNQ / Altera CycloneV SoC)
++* CPU: ARM64 Cortex-A53 (Xilinx ZYNQ UltraScale+ MPSoC)
++* CPU: x86(64bit) ただし検証が不十分です。皆さんからの結果を期待しています。また、現時点では以下の機能に制限があります。
++
++  * O_SYNCフラグによるCPUキャッシュの制御が出来ません。常にCPUキャッシュは有効です。
++  * sync_for_cpu、sync_for_deviceによる手動でのCPUキャッシュの制御が出来ません。
++  * デバイスツリーによる各種設定が出来ません。
++
++
++## 注意事項: udmabuf から u-dma-buf へ
++
++
++このデバイスドライバとは別の "udmabuf" という名前のカーネルモジュールが Linux Kernel 5.0 に追加されました。したがって、Linux Kernel 5.0 以降では、この udmabuf は使用できません。代わりに、このリポジトリで u-dma-buf を提供しています。u-dma-buf は udmabuf と同じ機能を提供しています。u-dma-buf を使用する場合は https://github.com/ikwzm/udmabuf/tree/u-dma-buf-master を参照してください。
++
++
++# 使い方
++
++
++
++## コンパイル
++
++
++次のようなMakefileを用意しています。
++
++
++```Makefile:Makefile
++HOST_ARCH       ?= $(shell uname -m | sed -e s/arm.*/arm/ -e s/aarch64.*/arm64/)
++ARCH            ?= $(shell uname -m | sed -e s/arm.*/arm/ -e s/aarch64.*/arm64/)
++KERNEL_SRC_DIR  ?= /lib/modules/$(shell uname -r)/build
++
++ifeq ($(ARCH), arm)
++ ifneq ($(HOST_ARCH), arm)
++   CROSS_COMPILE  ?= arm-linux-gnueabihf-
++ endif
++endif
++ifeq ($(ARCH), arm64)
++ ifneq ($(HOST_ARCH), arm64)
++   CROSS_COMPILE  ?= aarch64-linux-gnu-
++ endif
++endif
++
++u-dma-buf-obj           := udmabuf.o
++obj-$(CONFIG_U_DMA_BUF) += $(u-dma-buf-obj)
++
++all:
++	make -C $(KERNEL_SRC_DIR) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M=$(PWD) obj-m=$(u-dma-buf-obj) modules
++
++clean:
++	make -C $(KERNEL_SRC_DIR) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M=$(PWD) obj-m=$(u-dma-buf-obj) clean
++
++```
++
++
++
++
++
++## インストール
++
++
++insmod でudmabufのカーネルドライバをロードします。この際に引数を渡すことによりDMAバッファを確保してデバイスドライバを作成します。insmod の引数で作成できるDMAバッファは udmabuf0/1/2/3/4/5/6/7の最大８つです。
++
++
++```console
++zynq$ insmod udmabuf.ko udmabuf0=1048576
++udmabuf udmabuf0: driver installed
++udmabuf udmabuf0: major number   = 248
++udmabuf udmabuf0: minor number   = 0
++udmabuf udmabuf0: phys address   = 0x1e900000
++udmabuf udmabuf0: buffer size    = 1048576
++udmabuf udmabuf0:  dma coherent = 0
++zynq$ ls -la /dev/udmabuf0
++crw------- 1 root root 248, 0 Dec  1 09:34 /dev/udmabuf0
++```
++
++
++パーミッションがrootのみ読み書き可能になっています。ロード時にパーミッションを変更したい場合は、/etc/udev/rules.d/99-udmabuf.rules というファイルを作成し、以下の内容を書いておきます。
++
++
++```rules:99-udmabuf.rules
++KERNEL=="udmabuf[0-9]*", GROUP="root", MODE="0666"
++```
++
++
++
++
++アンインストールするには rmmod を使います。
++
++
++```console
++zynq$ rmmod udmabuf
++udmabuf udmabuf0: driver uninstalled
++```
++
++
++
++
++
++## Debian パッケージによるインストール
++
++
++以下のURL に udmabuf を Debian パッケージ化するリポジトリを用意しています。詳細は以下の URL を参照してください。
++
++*  https://github.com/ikwzm/udmabuf-kmod-dpkg
++
++
++
++
++## デバイスツリーによる設定
++
++
++udmabufはinsmod の引数でDMAバッファを用意する以外に、Linuxのカーネルが起動時に読み込むdevicetreeファイルによってDMAバッファを用意する方法があります。devicetreeファイルに次のようなエントリを追加しておけば、insmod でロードする際に自動的にDMAバッファを確保してデバイスドライバを作成します。
++
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			device-name = "udmabuf0";
++			minor-number = <0>;
++			size = <0x00100000>;
++		};
++
++```
++
++
++
++
++
++```console
++zynq$ insmod udmabuf.ko
++udmabuf udmabuf0: driver installed
++udmabuf udmabuf0: major number   = 248
++udmabuf udmabuf0: minor number   = 0
++udmabuf udmabuf0: phys address   = 0x1e900000
++udmabuf udmabuf0: buffer size    = 1048576
++udmabuf udmabuf0: dma coherent  = 0
++zynq$ ls -la /dev/udmabuf0
++crw------- 1 root root 248, 0 Dec  1 09:34 /dev/udmabuf0
++```
++
++
++
++
++デバイスツリーでは以下のプロパティを設定することができます。
++
++  *  compatible
++  *  size
++  *  minor-number
++  *  device-name
++  *  sync-mode
++  *  sync-always
++  *  sync-offset
++  *  sync-size
++  *  sync-direction
++  *  dma-coherent
++  *  memory-region
++
++
++
++
++### compatible
++
++
++compatible プロパティはデバイスツリーをロードした際に対応するデバイスドライバを指定します。compatible プロパティは必須です。compatible プロパティには必ず "ikwzm,udmabuf-0.10.a" を指定してください。
++
++
++
++
++### size
++
++
++size プロパティはDMAバッファの容量をバイト数で指定します。size プロパティは必須です。
++
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			size = <0x00100000>;
++		};
++
++```
++
++
++
++
++
++### minor-number
++
++
++minor-number プロパティはudmabufのマイナー番号を指定します。マイナー番号は0から255までつけることができます。ただし、insmodの引数の方が優先され、マイナー番号がかち合うとdevicetreeで指定した方が失敗します。
++
++minor-number プロパティは省略可能です。minor-number プロパティが省略された場合、空いているマイナー番号が割り当てられます。
++
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			minor-number = <0>;
++			size = <0x00100000>;
++		};
++
++```
++
++
++
++
++
++### device-name
++
++
++device-name プロパティはデバイス名を指定します。
++
++device-name プロパティは省略可能です。デバイス名は次のように決まります。
++
++1. device-name プロパティが指定されていた場合は、 device-name。
++2. device-name プロパティが省略されていて、かつminor-number プロパティが指定されていた場合は、sprintf("udmabuf%d", minor-number)。
++3. device-name プロパティが省略されていて、かつminor-number プロパティも省略されていた場合は、devicetree のエントリー名(例ではudmabuf@0x00)。
++
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			device-name = "udmabuf0";
++			size = <0x00100000>;
++		};
++
++```
++
++
++
++### sync-mode
++
++
++sync-mode プロパティはudmabufをopenする際にO_SYNCを指定した場合の動作を指定します。
++
++* sync-mode=<1>:  open 時にO_SYNCフラグが設定された場合または sync-always プロパティが設定されていた場合、CPUキャッシュを無効にします。O_SYNCフラグが設定されなかった場合、CPUキャッシュは有効です。
++* sync-mode=<2>: open 時に O_SYNCフラグが設定された場合または sync-always プロパティが設定されていた場合、CPUがDMAバッファに書き込む際、ライトコンバインします。ライトコンバインとは、基本的にはCPUキャッシュは無効ですが、複数の書き込みをまとめて行うことで若干性能が向上します。O_SYNCフラグが設定されなかった場合、CPUキャッシュは有効です。
++* sync-mode=<3>: open 時にO_SYNCフラグが設定された場合または sync-always プロパティが設定されていた場合、DMAコヒーレンシモードにします。O_SYNCフラグが設定されなかった場合、CPUキャッシュは有効です。
++
++sync-mode プロパティは省略可能です。sync-mode プロパティが省略された場合は <1> に設定されます。
++
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			size = <0x00100000>;
++			sync-mode = <2>;
++		};
++
++```
++
++
++O_SYNCおよびキャッシュの設定に関しては次の節で説明します。
++
++
++### sync-always
++
++
++sync-always プロパティを設定した時、 udmabuf を open する際に O_SYNC の指定に関わらず常に sync-mode プロパティで指定された動作することを指定します。
++
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			size = <0x00100000>;
++			sync-mode = <2>;
++			sync-always;
++		};
++
++```
++
++
++O_SYNCおよびキャッシュの設定に関しては次の節で説明します。
++
++
++### sync-offset
++
++
++sync-offset プロパティは udmabuf のキャッシュ制御を手動で行う際のバッファの範囲の先頭を指定します。
++
++sync-offset プロパティは省略可能です。sync-offset プロパティが省略された場合は<0> になります。
++
++手動でキャッシュを制御する方法は次の節で説明します。
++
++
++### sync-size
++
++
++sync-size プロパティは  udmabuf  のキャッシュ制御を手動で行う際のバッファの範囲のサイズを指定します。
++
++sync-size プロパティは省略可能です。sync-size プロパティが省略された場合は、size プロパティと同じ値になります。
++
++手動でキャッシュを制御する方法は次の節で説明します。
++
++
++### sync-direction
++
++
++sync-direction プロパティは udmabuf のキャッシュ制御を手動で行う際のDMAの方向を指定します。
++
++* sync-direction=<0>: DMA_BIDIRECTIONALを指定します。
++* sync-direction=<1>: DMA_TO_DEVICEを指定します。
++* sync-direction=<2>: DMA_FROM_DEVICEを指定します。
++
++sync-direction プロパティは省略可能です。sync-direction プロパティが省略された場合は<0>に設定されます。
++
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			size = <0x00100000>;
++			sync-offset = <0x00010000>;
++			sync-size = <0x000F0000>;
++			sync-direction = <2>;
++		};
++
++```
++
++
++手動でキャッシュを制御する方法は次の節で説明します。
++
++
++### dma-coherent
++
++
++dma-coherent プロパティを設定した時、DMAバッファとCPUキャッシュのコヒーレンシはハードウェアで保証できることを示します。
++
++dma-coherent プロパティは省略可能です。dma-cohernet プロパティが省略された場合、DMAバッファとCPUキャッシュのコヒーレンシはハードウェアで保証できないことを示します。
++
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			size = <0x00100000>;
++			dma-coherent;
++		};
++
++```
++
++
++手動でキャッシュを制御する方法は次の節で説明します。
++
++
++### memory-region
++
++
++Linux はデバイスツリーで reserved-memory(予約メモリ)領域を指定することができます。Linux のカーネルは reserved-memory で指定された物理メモリ空間を通常のメモリアロケーションの対象外にします。この reserved-memory 領域にアクセスするためには /dev/mem 等の汎用メモリアクセスドライバを使うか、デバイスツリーでデバイスドライバに紐付ける必要があります。
++
++memory-region プロパティによってreserved-memory で確保したメモリ領域 udmabuf に紐付けることができます。
++
++
++```devicetree:devicetree.dts
++	reserved-memory {
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges;
++		image_buf0: image_buf@0 {
++			compatible = "shared-dma-pool";
++			reusable;
++			reg = <0x3C000000 0x04000000>; 
++			label = "image_buf0";
++		};
++	};
++	udmabuf@0 {
++		compatible = "ikwzm,udmabuf-0.10.a";
++		device-name = "udmabuf0";
++		size = <0x04000000>; // 64MiB
++		memory-region = <&image_buf0>;
++	};
++```
++
++
++上の例では image_buf0 として 0x3C000000 〜 0x3FFFFFFF の64Mbyte を reserved-memory として確保しています。この image_buf0 に compatible プロパティに "shared-dma-pool" を、そして reusable プロパティを指定します。これらのプロパティの指定によって、この reserved-memory の領域を CMA がアロケートする領域とします。また、アドレスとサイズのアライメントに注意する必要があります。
++
++udmabuf0 に上記の image_buf0 を memory-region プロパティで紐付けしています。この紐付けによって udmabuf0 は image_buf0 で指定した CMA 領域から物理メモリを確保します。
++
++memory-region プロパティは省略可能です。memory-region プロパティが省略された場合、Linux カーネルに確保された CMA 領域から DMA バッファを確保します。
++
++
++## デバイスファイル
++
++
++udmabufをinsmodでカーネルにロードすると、次のようなデバイスファイルが作成されます。\<device-name\>には、前節で説明したデバイス名が入ります。
++
++  * /dev/\<device-name\>
++  * /sys/class/udmabuf/\<device-name\>/phys_addr
++  * /sys/class/udmabuf/\<device-name\>/size
++  * /sys/class/udmabuf/\<device-name\>/sync_mode
++  * /sys/class/udmabuf/\<device-name\>/sync_offset
++  * /sys/class/udmabuf/\<device-name\>/sync_size
++  * /sys/class/udmabuf/\<device-name\>/sync_direction
++  * /sys/class/udmabuf/\<device-name\>/sync_owner
++  * /sys/class/udmabuf/\<device-name\>/sync_for_cpu
++  * /sys/class/udmabuf/\<device-name\>/sync_for_device
++  * /sys/class/udmabuf/\<device-name\>/dma_coherent
++
++
++### /dev/\<device-name\>
++
++
++/dev/\<device-name\>はmmap()を使って、ユーザー空間にマッピングするか、read()、write()を使ってバッファにアクセスする際に使用します。
++
++
++```C:udmabuf_test.c
++    if ((fd  = open("/dev/udmabuf0", O_RDWR)) != -1) {
++        buf = mmap(NULL, buf_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
++        /* ここでbufに読み書きする処理を行う */
++        close(fd);
++    }
++
++```
++
++
++また、ddコマンド等でにデバイスファイルを指定することにより、shellから直接リードライトすることも出来ます。
++
++
++```console
++zynq$ dd if=/dev/urandom of=/dev/udmabuf0 bs=4096 count=1024
++1024+0 records in
++1024+0 records out
++4194304 bytes (4.2 MB) copied, 3.07516 s, 1.4 MB/s
++```
++
++
++```console
++zynq$dd if=/dev/udmabuf4 of=random.bin
++8192+0 records in
++8192+0 records out
++4194304 bytes (4.2 MB) copied, 0.173866 s, 24.1 MB/s
++```
++
++
++
++
++
++### phys_addr
++
++
++/sys/class/udmabuf/\<device-name\>/phys_addr はDMAバッファの物理アドレスが読めます。
++
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  phys_addr;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/phys_addr", O_RDONLY)) != -1) {
++        read(fd, attr, 1024);
++        sscanf(attr, "%x", &phys_addr);
++        close(fd);
++    }
++
++```
++
++
++
++
++
++### size
++
++
++/sys/class/udmabuf/\<device-name\>/size はDMAバッファのサイズが読めます。
++
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned int   buf_size;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/size", O_RDONLY)) != -1) {
++        read(fd, attr, 1024);
++        sscanf(attr, "%d", &buf_size);
++        close(fd);
++    }
++
++```
++
++
++
++
++
++### sync_mode
++
++
++/sys/class/udmabuf/\<device-name\>/sync_mode はudmabufをopenする際にO_SYNCを指定した場合の動作を指定します。
++
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_mode = 2;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_mode", O_WRONLY)) != -1) {
++        sprintf(attr, "%d", sync_mode);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++
++O_SYNCおよびキャッシュの設定に関しては次の節で説明します。
++
++
++
++
++### sync_offset
++
++
++/sys/class/udmabuf/\<device-name\>/sync_offset は udmabufのキャッシュ制御を手動で行う際のバッファの範囲の先頭を指定します。
++
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_offset = 0x00000000;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_offset", O_WRONLY)) != -1) {
++        sprintf(attr, "%d", sync_offset);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++
++手動でキャッシュを制御する方法は次の節で説明します。
++
++
++
++
++### sync_size
++
++
++/sys/class/udmabuf/\<device-name\>/sync_size は udmabufのキャッシュ制御を手動で行う際のバッファの範囲のサイズを指定します。
++
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_size = 1024;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_size", O_WRONLY)) != -1) {
++        sprintf(attr, "%d", sync_size);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++
++手動でキャッシュを制御する方法は次の節で説明します。
++
++
++
++
++### sync_direction
++
++
++/sys/class/udmabuf/\<device-name\>/sync_direction は udmabufのキャッシュ制御を手動で行う際のDMAの方向を指定します。
++
++0: DMA_BIDIRECTIONALを指定します。
++
++1: DMA_TO_DEVICEを指定します。
++
++2: DMA_FROM_DEVICEを指定します。
++
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_direction = 1;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_direction", O_WRONLY)) != -1) {
++        sprintf(attr, "%d", sync_direction);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++
++手動でキャッシュを制御する方法は次の節で説明します。
++
++
++
++
++### dma_coherent
++
++
++/sys/class/udmabuf/\<device-name\>/dma_coherent は DMAバッファとCPUキャッシュのコヒーレンシをハードウェアで保証できるか否かを読み取ることができます。デバイスツリーで dma-coherent プロパティでハードウェアで保証できるか否かを指定することができますが、このデバイスファイルは読み取り専用です。
++
++この値が1の時は、DMAバッファとCPUキャッシュのコヒーレンシはハードウェアで保証できることを示します。この値が0の時は、DMAバッファとCPUキャッシュのコヒーレンシはハードウェアで保証できないことを示します。
++
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    int dma_coherent;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/dma_coherent", O_RDONLY)) != -1) {
++        read(fd, attr, 1024);
++        sscanf(attr, "%x", &dma_coherent);
++        close(fd);
++    }
++
++```
++
++
++
++
++
++
++
++### sync_owner
++
++
++/sys/class/udmabuf/\<device-name\>/sync_owner は udmabufのキャッシュ制御を手動で行った際に、現在のバッファのオーナーがCPUかDEVICEを読み取ります。バッファのオーナーが CPU の場合は 0 が読めます。バッファのオーナーが DEVICE の場合は 1 が読めます。
++
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    int sync_owner;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_owner", O_RDONLY)) != -1) {
++        read(fd, attr, 1024);
++        sscanf(attr, "%x", &sync_owner);
++        close(fd);
++    }
++
++```
++
++
++手動でキャッシュを制御する方法は次の節で説明します。
++
++
++
++
++### sync_for_cpu
++
++
++/sys/class/udmabuf/\<device-name\>/sync_for_cpu はudmabufのキャッシュ制御を手動で行う際、このデバイスファイルに0以外の値を書き込むことでバッファのオーナーをCPUにします。このデバイスファイルは書き込みオンリーです。
++
++このデバイスファイルに 1 を書いた場合、sync_directionが2(=DMA_FROM_DEVICE)または0(=DMA_BIDIRECTIONAL)だった時、sync_offsetとsync_size で指定された領域のCPUキャッシュが無効化されます。
++
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_for_cpu = 1;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_for_cpu", O_WRONLY)) != -1) {
++        sprintf(attr, "%d", sync_for_cpu);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++
++
++
++この sync_for_cpu デバイスファイルに書き込む値には、次のように、 sync_offset、sync_size および sync_direction を含める事が出来ます。
++
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_offset     = 0;
++    unsigned long  sync_size        = 0x10000;
++    unsigned int   sync_direction = 1;
++    unsigned long  sync_for_cpu    = 1;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_for_cpu", O_WRONLY)) != -1) {
++        sprintf(attr, "0x%08X%08X", (sync_offset & 0xFFFFFFFF), (sync_size & 0xFFFFFFF0) | (sync_direction << 2) | sync_for_cpu);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++
++この sync_for_cpu デバイスファイルに含まれた sync_offset、sync_size、sync_direction は一時的なものであり、デバイスファイルの sync_offset、sync_size、sync_direction の値には影響を与えません。
++
++
++
++手動でキャッシュを制御する方法は次の節で説明します。
++
++
++### sync_for_device
++
++
++/sys/class/udmabuf/\<device-name\>/sync_for_deviceはudmabufのキャッシュ制御を手動で行う際、このデバイスドライバに0以外の値を書き込むことでバッファのオーナーをDEVICEにします。このデバイスファイルは書き込みオンリーです。
++
++このデバイスファイルに 1 を書いた場合、sync_directionが1(=DMA_TO_DEVICE)または0(=DMA_BIDIRECTIONAL)だった時、sync_offsetとsync_size で指定された領域のCPUキャッシュがフラッシュされます。
++
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_for_device = 1;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_for_device", O_WRONLY)) != -1) {
++        sprintf(attr, "%d", sync_for_device);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++
++
++
++この sync_for_device デバイスファイルに書き込む値には、次のように、 sync_offset、sync_size および sync_direction を含める事が出来ます。
++
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_offset     = 0;
++    unsigned long  sync_size        = 0x10000;
++    unsigned int   sync_direction  = 1;
++    unsigned long  sync_for_device = 1;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_for_device", O_WRONLY)) != -1) {
++        sprintf(attr, "0x%08X%08X", (sync_offset & 0xFFFFFFFF), (sync_size & 0xFFFFFFF0) | (sync_direction << 2) | sync_for_device);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++
++この sync_for_device デバイスファイルに含まれた sync_offset、sync_size、sync_direction は一時的なものであり、デバイスファイルの sync_offset、sync_size、sync_direction の値には影響を与えません。
++
++
++
++手動でキャッシュを制御する方法は次の節で説明します。
++
++
++# DMAバッファとCPUキャッシュのコヒーレンシ
++
++
++CPUは通常キャッシュを通じてメインメモリ上のDMAバッファにアクセスしますが、アクセラレータは直接メインメモリ上のDMAバッファにアクセスします。その際、問題になるのはCPUのキャッシュとメインメモリとのコヒーレンシ(内容の一貫性)です。
++
++
++
++
++## ハードウェアでコヒーレンシを保証できる場合
++
++
++ハードウェアでコヒーレンシを保証できる場合、CPUキャッシュを有効にしても問題はありません。例えばZYNQにはACP(Accelerator Coherency Port)があり、アクセラレータ側がこのPortを通じてメインメモリにアクセスする場合は、ハードウェアによってCPUキャッシュとメインメモリとのコヒーレンシが保証できます。
++
++ハードウェアでコヒーレンシを保証できる場合は、CPUキャッシュを有効にすることでCPUからのアクセスを高速に行うことができます。CPUキャッシュを有効にする場合は、O_SYNCフラグを設定せずにudmabufをopen してください。
++
++
++```C:udmabuf_test.c
++    /* CPUキャッシュを有効にする場合はO_SYNCをつけずにopen する */
++    if ((fd  = open("/dev/udmabuf0", O_RDWR)) != -1) {
++        buf = mmap(NULL, buf_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
++        /* ここでbufに読み書きする処理を行う */
++        close(fd);
++    }
++
++```
++
++
++
++
++ハードウェアでコヒーレンシを保証できる場合は、次の項で説明するようなCPUキャッシュを手動で制御する必要はありません。
++
++
++
++デバイスツリーで dma-coherent プロパティを設定した場合、ハードウェアでコヒーレンシを保証できることを指定します。dma-coherent プロパティを設定した場合、後述の「CPUキャッシュを有効にしたまま手動でCPUキャッシュを制御する方法」で説明したキャッシュの制御が行われません。
++
++
++
++
++## ハードウェアでコヒーレンシを保証できない場合
++
++
++ハードウェアでコヒーレンシを保証できない場合、別の方法でコヒーレンシを保証しなければなりません。udmabufでは、CPUキャッシュを無効にする方法と、CPUキャッシュを有効にしたまま手動でCPUキャッシュをフラッシュ/無効化する方法を用意しています。
++
++
++
++
++### CPUキャッシュを無効にする方法
++
++
++CPUキャッシュを無効にする場合は、udmabufをopenする際にO_SYNCフラグを設定します。
++
++
++```C:udmabuf_test.c
++    /* CPUキャッシュを無効にする場合はO_SYNCをつけてopen する */
++    if ((fd  = open("/dev/udmabuf0", O_RDWR | O_SYNC)) != -1) {
++        buf = mmap(NULL, buf_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
++        /* ここでbufに読み書きする処理を行う */
++        close(fd);
++    }
++
++```
++
++
++O_SYNCフラグを設定した場合のキャッシュの振る舞いはsync_modeで設定します。sync_modeには次の値が設定できます。
++
++* sync_mode=0:  常にCPUキャッシュが有効。つまりO_SYNCフラグの有無にかかわらず常にCPUキャッシュは有効になります。
++* sync_mode=1: O_SYNCフラグが設定された場合、CPUキャッシュを無効にします。O_SYNCフラグが設定されなかった場合、CPUキャッシュは有効です。
++* sync_mode=2: O_SYNCフラグが設定された場合、CPUがDMAバッファに書き込む際、ライトコンバインします。ライトコンバインとは、基本的にはCPUキャッシュは無効ですが、複数の書き込みをまとめて行うことで若干性能が向上します。O_SYNCフラグが設定されなかった場合、CPUキャッシュは有効です。
++* sync_mode=3: O_SYNCフラグが設定された場合、DMAコヒーレンシモードにします。といっても、DMAコヒーレンシモードに関してはまだよく分かっていません。O_SYNCフラグが設定されなかった場合、CPUキャッシュは有効です。
++* sync_mode=4:  常にCPUキャッシュが有効。つまりO_SYNCフラグの有無にかかわらず常にCPUキャッシュは有効になります。
++* sync_mode=5: O_SYNCフラグの有無にかかわらずCPUキャッシュを無効にします。
++* sync_mode=6: O_SYNCフラグの有無にかかわらず、CPUがDMAバッファに書き込む際、ライトコンバインします。
++* sync_mode=7: O_SYNCフラグの有無にかかわらず、DMAコヒーレンシモードにします。
++
++
++
++参考までに、CPUキャッシュを有効/無効にした場合の次のようなプログラムを実行した際の処理時間を示します。
++
++
++```C:udmabuf_test.c
++int check_buf(unsigned char* buf, unsigned int size)
++{
++    int m = 256;
++    int n = 10;
++    int i, k;
++    int error_count = 0;
++    while(--n > 0) {
++      for(i = 0; i < size; i = i + m) {
++        m = (i+256 < size) ? 256 : (size-i);
++        for(k = 0; k < m; k++) {
++          buf[i+k] = (k & 0xFF);
++        }
++        for(k = 0; k < m; k++) {
++          if (buf[i+k] != (k & 0xFF)) {
++            error_count++;
++          }
++        }
++      }
++    }
++    return error_count;
++}
++int clear_buf(unsigned char* buf, unsigned int size)
++{
++    int n = 100;
++    int error_count = 0;
++    while(--n > 0) {
++      memset((void*)buf, 0, size);
++    }
++    return error_count;
++}
++
++```
++
++
++表-1　checkbufの測定結果
++
++<table border="2">
++  <tr>
++    <td align="center" rowspan="2">sync_mode</td>
++    <td align="center" rowspan="2">O_SYNC</td>
++    <td align="center" colspan="3">DMAバッファのサイズ</td>
++  </tr>
++  <tr>
++    <td align="center">1MByte</td>
++    <td align="center">5MByte</td>
++    <td align="center">10MByte</td>
++  </tr>
++  <tr>
++    <td rowspan="2">0</td>
++    <td>無</td>
++    <td align="right">0.437[sec]</td>
++    <td align="right">2.171[sec]</td>
++    <td align="right">4.340[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">0.437[sec]</td>
++    <td align="right">2.171[sec]</td>
++    <td align="right">4.340[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">1</td>
++    <td>無</td>
++    <td align="right">0.434[sec]</td>
++    <td align="right">2.179[sec]</td>
++    <td align="right">4.337[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">2.283[sec]</td>
++    <td align="right">11.414[sec]</td>
++    <td align="right">22.830[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">2</td>
++    <td>無</td>
++    <td align="right">0.434[sec]</td>
++    <td align="right">2.169[sec]</td>
++    <td align="right">4.337[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">1.616[sec]</td>
++    <td align="right">8.262[sec]</td>
++    <td align="right">16.562[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">3</td>
++    <td>無</td>
++    <td align="right">0.434[sec]</td>
++    <td align="right">2.169[sec]</td>
++    <td align="right">4.337[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">1.600[sec]</td>
++    <td align="right">8.391[sec]</td>
++    <td align="right">16.587[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">4</td>
++    <td>無</td>
++    <td align="right">0.437[sec]</td>
++    <td align="right">2.171[sec]</td>
++    <td align="right">4.337[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">0.437[sec]</td>
++    <td align="right">2.171[sec]</td>
++    <td align="right">4.337[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">5</td>
++    <td>無</td>
++    <td align="right">2.283[sec]</td>
++    <td align="right">11.414[sec]</td>
++    <td align="right">22.809[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">2.283[sec]</td>
++    <td align="right">11.414[sec]</td>
++    <td align="right">22.840[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">6</td>
++    <td>無</td>
++    <td align="right">1.655[sec]</td>
++    <td align="right">8.391[sec]</td>
++    <td align="right">16.587[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">1.655[sec]</td>
++    <td align="right">8.391[sec]</td>
++    <td align="right">16.587[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">7</td>
++    <td>無</td>
++    <td align="right">1.655[sec]</td>
++    <td align="right">8.391[sec]</td>
++    <td align="right">16.587[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">1.655[sec]</td>
++    <td align="right">8.391[sec]</td>
++    <td align="right">16.587[sec]</td>
++  </tr>
++</table>
++
++表-2　clearbufの測定結果
++
++<table border="2">
++  <tr>
++    <td align="center" rowspan="2">sync_mode</td>
++    <td align="center" rowspan="2">O_SYNC</td>
++    <td align="center" colspan="3">DMAバッファのサイズ</td>
++  </tr>
++  <tr>
++    <td align="center">1MByte</td>
++    <td align="center">5MByte</td>
++    <td align="center">10MByte</td>
++  </tr>
++  <tr>
++    <td rowspan="2">0</td>
++    <td>無</td>
++    <td align="right">0.067[sec]</td>
++    <td align="right">0.359[sec]</td>
++    <td align="right">0.713[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">0.067[sec]</td>
++    <td align="right">0.362[sec]</td>
++    <td align="right">0.716[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">1</td>
++    <td>無</td>
++    <td align="right">0.067[sec]</td>
++    <td align="right">0.362[sec]</td>
++    <td align="right">0.718[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">0.912[sec]</td>
++    <td align="right">4.563[sec]</td>
++    <td align="right">9.126[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">2</td>
++    <td>無</td>
++    <td align="right">0.068[sec]</td>
++    <td align="right">0.360[sec]</td>
++    <td align="right">0.721[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">0.063[sec]</td>
++    <td align="right">0.310[sec]</td>
++    <td align="right">0.620[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">3</td>
++    <td>無</td>
++    <td align="right">0.068[sec]</td>
++    <td align="right">0.361[sec]</td>
++    <td align="right">0.715[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">0.062[sec]</td>
++    <td align="right">0.310[sec]</td>
++    <td align="right">0.620[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">4</td>
++    <td>無</td>
++    <td align="right">0.068[sec]</td>
++    <td align="right">0.360[sec]</td>
++    <td align="right">0.718[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">0.067[sec]</td>
++    <td align="right">0.360[sec]</td>
++    <td align="right">0.710[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">5</td>
++    <td>無</td>
++    <td align="right">0.913[sec]</td>
++    <td align="right">4.562[sec]</td>
++    <td align="right">9.126[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">0.913[sec]</td>
++    <td align="right">4.562[sec]</td>
++    <td align="right">9.126[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">6</td>
++    <td>無</td>
++    <td align="right">0.062[sec]</td>
++    <td align="right">0.310[sec]</td>
++    <td align="right">0.618[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">0.062[sec]</td>
++    <td align="right">0.310[sec]</td>
++    <td align="right">0.619[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">7</td>
++    <td>無</td>
++    <td align="right">0.062[sec]</td>
++    <td align="right">0.310[sec]</td>
++    <td align="right">0.620[sec]</td>
++  </tr>
++  <tr>
++    <td>有</td>
++    <td align="right">0.062[sec]</td>
++    <td align="right">0.310[sec]</td>
++    <td align="right">0.621[sec]</td>
++  </tr>
++</table>
++
++
++### 注意事項: ARM64 で O_SYNC を使う場合 
++
++
++v1.4.4 以前では、udmabuf は ARM64 で sync_mode = 1 (nocached) の時、pgprot_writecombine() を使用していました。その理由は、 pgprot_noncached() を使用すると udmabuf_test.c の memset() でバスエラーが発生したためです。
++
++しかしながら、https://github.com/ikwzm/udmabuf/pull/28 で報告されているように、ARM64 で pgprot_writecombile() を使用するとキャッシュの一貫性に問題があることがわかりました。
++
++したがって、v1.4.5 以降、sync_mode = 1 の場合は pgprog_noncached() を使用するように変更しました。これは、キャッシュの一貫性の問題を理解するのが非常に難しくデバッグが難しいためです。キャッシュの一貫性の問題を心配するのではなくバスエラーを起こした方が安全だと判断しました。
++
++この変更により、ARM64 で O_SYNC フラグのるキャッシュ制御を行う場合は注意が必要になります。おそらく、memset() を使用することはできません。
++
++問題が発生した場合、キャッシュの一貫性はハードウェアによって維持するか、後述のCPUキャッシュを有効にしたまま手動でキャッシュを制御する方法を使用してください。
++
++
++### CPUキャッシュを有効にしたまま手動でCPUキャッシュを制御する方法
++
++
++CPUキャッシュを有効にする場合は、O_SYNCフラグを設定せずにudmabufをopen します。
++
++
++```C:udmabuf_test.c
++    /* CPUキャッシュを有効にする場合はO_SYNCをつけずにopen する */
++    if ((fd  = open("/dev/udmabuf0", O_RDWR)) != -1) {
++        buf = mmap(NULL, buf_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
++        /* ここでbufに読み書きする処理を行う */
++        close(fd);
++    }
++
++```
++
++
++
++
++アクセラレーターと共有するバッファの範囲をsync_offsetとsync_sizeで指定します。sync_offsetはmmap()で確保した先頭アドレスからのオフセット値を指定します。sync_sizeは共有するバッファの大きさをバイト数で指定します。
++
++アクセラレータがバッファからデータを読むだけの場合は、sync_direction に1(=DMA_TO_DEVICE)を指定します。
++
++アクセラレータがバッファにデータを書き込むだけの場合は、sync_direction に2(=DMA_FROM_DEVICE)を指定します。
++
++アクセラレータがバッファにデータを読み書き両方行う場合は、sync_direction に0(=DMA_BIDIRECTIONAL)を指定します。
++
++
++
++以上の設定の後、CPUがバッファにアクセスする前に sync_for_cpu に1を書いてバッファのオーナーをCPUにします。dma-coherent プロパティが設定されていない場合、sync_direction が2か0の時、sync_offsetとsync_sizeで指定された範囲のCPUキャッシュを無効化(Invalidiate)します。一度この操作を行ってバッファのオーナーをCPUにした後は、アクセラレーターがバッファをアクセスしないようにしなければなりません。dma-coherent プロパティが設定されている場合、キャッシュの無効化(Invalidiate)は行われません。
++
++
++
++アクセラレータがバッファにアクセスする前にsync_for_deviceに1を書いてバッファのオーナーをデバイスにします。dma-coherentプロパティが設定されていない場合、sync_directionが1か0の時、sync_offsetとsync_sizeで指定された範囲のCPUキャッシュをフラッシュします。一度この操作を行ってバッファのオーナーをアクセラレーターにした後は、CPUがこのバッファをアクセスしてはいけません。dma-coherent プロパティが設定されている場合、キャッシュのフラッシュは行われません。
++
++
++# Python から udmabuf を使う例
++
++
++プログラミング言語Python には NumPy という拡張モジュールが提供されています。この節ではudmabuf でカーネル内に確保した DMA バッファを NumPy の memmap でマッピングして ndarray と同じような操作をする方法について説明します。
++
++
++## Udmabuf クラス
++
++
++ここでは  udmabuf を Python から使うための Udmabuf クラスを定義している udmabuf.py について説明します。
++
++
++
++Udmabuf クラスを定義する前に、numpy をインポートします。
++
++
++```python:udmabuf.py
++import numpy as np
++
++```
++
++
++
++
++Udmabuf クラスを定義します。初期化時にデバイス名を指定します。
++
++
++```python:udmabuf.py
++class Udmabuf:
++    """A simple udmabuf class"""
++    def __init__(self, name):
++        self.name           = name
++        self.device_name    = '/dev/%s'               % self.name
++        self.class_path     = '/sys/class/udmabuf/%s' % self.name
++        self.phys_addr      = self.get_value('phys_addr', 16)
++        self.buf_size       = self.get_value('size')
++        self.sync_offset    = None
++        self.sync_size      = None
++        self.sync_direction = None
++
++```
++
++
++
++
++Udmabuf クラスにカーネル内に確保した DMA バッファを NumPy の memmap でマッピングする memmap メソッドを定義します。
++
++
++```python:udmabuf.py
++    def memmap(self, dtype, shape):
++        self.item_size = np.dtype(dtype).itemsize
++        self.array     = np.memmap(self.device_name, dtype=dtype, mode='r+', shape=shape)
++        return self.array
++```
++
++
++
++
++Udmabuf クラスにデバイスファイルから数値を読む get_value メソッドと数値を書き込む set_value メソッドを定義します。
++
++
++```python:udmabuf.py
++    def get_value(self, name, radix=10):
++        value = None
++        for line in open(self.class_path + '/' + name):
++            value = int(line, radix)
++            break
++        return value
++    def set_value(self, name, value):
++        f = open(self.class_path + '/' + name, 'w')
++        f.write(str(value))
++        f.close
++
++```
++
++
++
++
++Udmabuf クラスにキャッシュを制御するメソッド群を定義します。
++
++
++```python:udmabuf.py
++    def set_sync_area(self, direction=None, offset=None, size=None):
++        if offset is None:
++            self.sync_offset    = self.get_value('sync_offset')
++        else:
++            self.set_value('sync_offset', offset)
++            self.sync_offset    = offset
++        if size   is None:
++            self.sync_size      = self.get_value('sync_size')
++        else:
++            self.set_value('sync_size', size)
++            self.sync_size      = size
++        if direction is None:
++            self.sync_direction = self.get_value('sync_direction')
++        else:
++            self.set_value('sync_direction', direction)
++            self.sync_direction = direction
++    def set_sync_to_device(self, offset=None, size=None):
++        self.set_sync_area(1, offset, size)
++    def set_sync_to_cpu(self, offset=None, size=None):
++        self.set_sync_area(2, offset, size)
++    def set_sync_to_bidirectional(self, offset=None, size=None):
++        self.set_sync_area(3, offset, size)
++    def sync_for_cpu(self):
++        self.set_value('sync_for_cpu', 1)
++    def sync_for_device(self):
++        self.set_value('sync_for_device', 1)
++
++```
++
++
++
++## udmabuf_test.py
++
++
++次に Python+NumPy による簡単なテストをするスクリプトを示します。
++
++
++```python:udmabuf_test.py
++from udmabuf import Udmabuf
++import numpy as np
++import time
++def test_1(a):
++    for i in range (0,9):
++        a *= 0
++        a += 0x31
++if __name__ == '__main__':
++    udmabuf      = Udmabuf('udmabuf0')
++    test_dtype   = np.uint8
++    test_size    = udmabuf.buf_size/(np.dtype(test_dtype).itemsize)
++    udmabuf.memmap(dtype=test_dtype, shape=(test_size))
++    comparison   = np.zeros(test_size, dtype=test_dtype)
++    print ("test_size  : %d" % test_size)
++    start        = time.time()
++    test_1(udmabuf.mem_map)
++    elapsed_time = time.time() - start
++    print ("udmabuf0   : elapsed_time:{0}".format(elapsed_time)) + "[sec]"
++    start        = time.time()
++    test_1(comparison)
++    elapsed_time = time.time() - start
++    print ("comparison : elapsed_time:{0}".format(elapsed_time)) + "[sec]"
++    if np.array_equal(udmabuf.mem_map, comparison):
++        print ("udmabuf0 == comparison : OK")
++    else:
++        print ("udmabuf0 != comparison : NG")
++
++```
++
++
++
++
++
++## 実行結果
++
++
++udmabuf をインストールします。今回の例では udmabuf0 として 8MByte のバッファを確保しています。
++
++
++```console
++zynq# insmod udmabuf.ko udmabuf0=8388608
++[34654.622746] udmabuf udmabuf0: driver installed
++[34654.627153] udmabuf udmabuf0: major number   = 237
++[34654.631889] udmabuf udmabuf0: minor number   = 0
++[34654.636685] udmabuf udmabuf0: phys address   = 0x1f300000
++[34654.642002] udmabuf udmabuf0: buffer size    = 8388608
++[34654.642002] udmabuf udmabuf0: dma-coherent  = 0
++
++```
++
++
++
++
++前節のスクリプトを実行すると次のような結果が得られました。
++
++
++```console
++zynq# python udmabuf_test.py
++test_size  : 8388608
++udmabuf0   : elapsed_time:1.53304982185[sec]
++comparison : elapsed_time:1.536673069[sec]
++udmabuf0 == comparison : OK
++```
++
++
++
++
++udmabuf0(カーネル内に確保したバッファ領域)に対する操作と、ndarray で同じ操作を行った場合(comparison)の実行時間はほぼ同じでした。すなわち udmabuf0 も CPU キャッシュが有効に働いていると思われます。
++
++このスクリプトを実行した後で、udmabuf0 の内容を確認しました。
++
++
++```console
++zynq# dd if=/dev/udmabuf0 of=udmabuf0.bin bs=8388608
++1+0 records in
++1+0 records out
++8388608 bytes (8.4 MB) copied, 0.151531 s, 55.4 MB/s
++shell# 
++shell# od -t x1 udmabuf0.bin
++0000000 31 31 31 31 31 31 31 31 31 31 31 31 31 31 31 31
++*
++40000000
++```
++
++
++
++
++スクリプト実行後も、実行した結果がバッファに残っていることが確認できました。念のため、NumPy でも読めることを確認しましょう。
++
++
++
++
++```console
++zynq# python
++Python 2.7.9 (default, Aug 13 2016, 17:56:53)
++[GCC 4.9.2] on linux2
++Type "help", "copyright", "credits" or "license" for more information.
++>>> import numpy as np
++>>> a = np.memmap('/dev/udmabuf0', dtype=np.uint8, mode='r+', shape=(8388608))
++>>> a
++memmap([49, 49, 49, ..., 49, 49, 49], dtype=uint8)
++>>> a.itemsize
++1
++>>> a.size
++8388608
++>>>
++```
+diff --git b/drivers/udmabuf/Readme.md b/drivers/udmabuf/Readme.md
+new file mode 100644
+index 0000000..32ef6bb
+--- /dev/null
++++ b/drivers/udmabuf/Readme.md
+@@ -0,0 +1,1239 @@
++udmabuf(User space mappable DMA Buffer)
++==================================================================================
++
++# Overview
++
++## Introduction of udmabuf
++
++udmabuf is a Linux device driver that allocates contiguous memory blocks in the
++kernel space as DMA buffers and makes them available from the user space.
++It is intended that these memory blocks are used as DMA buffers when a user 
++application implements device driver in user space using UIO (User space I/O).
++
++A DMA buffer allocated by udmabuf can be accessed from the user space by opneing
++the device file (e.g. /dev/udmabuf0) and mapping to the user memory space, or
++using the read()/write() functions.
++
++CPU cache for the allocated DMA buffer can be disabled by setting the `O_SYNC` flag
++when opening the device file. It is also possible to flush or invalidate CPU cache
++while retaining CPU cache enabled.
++
++The physical address of a DMA buffer allocated by udmabuf can be obtained by
++reading `/sys/class/udmabuf/udmabuf0/phys_addr`.
++
++The size of a DMA buffer and the device minor number can be specified when 
++the device driver is loaded (e.g. when loaded via the `insmod` command).
++Some platforms allow to specify them in the device tree.
++
++
++## Architecture of udmabuf
++
++![Figure 1. Architecture ](./udmabuf1.jpg "Figure 1. Architecture")
++
++Figure 1. Architecture
++
++<br />
++
++## Supported platforms
++
++* OS : Linux Kernel Version 3.6 - 3.8, 3.18, 4.4, 4.8, 4.12, 4.14, 4.19 (the author tested on 3.18, 4.4, 4.8, 4.12, 4.14, 4.19).
++* CPU: ARM Cortex-A9 (Xilinx ZYNQ / Altera CycloneV SoC)
++* CPU: ARM64 Cortex-A53 (Xilinx ZYNQ UltraScale+ MPSoC)
++* CPU: x86(64bit) However, verification is not enough. I hope the results from everyone.
++  In addition, there is a limit to the following feature at the moment.
++  - Can not control of the CPU cache by O_SYNC flag . Always CPU cache is valid.
++  - Can not various settings by the device tree.
++
++## Note: udmabuf to u-dma-buf
++
++Another kernel module with the same name as "udmabuf" was added in Linux Kernel 5.0. Therefore, since Linux Kernel 5.0, this "udmabuf" cannot be used. Instead, "u-dma-buf" is provided in this repository. If you use "u-dma-buf", see https://github.com/ikwzm/udmabuf/tree/u-dma-buf-master 
++
++# Usage
++
++## Compile
++
++The following `Makefile` is included in the repository.
++
++```Makefile:Makefile
++HOST_ARCH       ?= $(shell uname -m | sed -e s/arm.*/arm/ -e s/aarch64.*/arm64/)
++ARCH            ?= $(shell uname -m | sed -e s/arm.*/arm/ -e s/aarch64.*/arm64/)
++KERNEL_SRC_DIR  ?= /lib/modules/$(shell uname -r)/build
++
++ifeq ($(ARCH), arm)
++ ifneq ($(HOST_ARCH), arm)
++   CROSS_COMPILE  ?= arm-linux-gnueabihf-
++ endif
++endif
++ifeq ($(ARCH), arm64)
++ ifneq ($(HOST_ARCH), arm64)
++   CROSS_COMPILE  ?= aarch64-linux-gnu-
++ endif
++endif
++
++u-dma-buf-obj           := udmabuf.o
++obj-$(CONFIG_U_DMA_BUF) += $(u-dma-buf-obj)
++
++all:
++	make -C $(KERNEL_SRC_DIR) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M=$(PWD) obj-m=$(u-dma-buf-obj) modules
++
++clean:
++	make -C $(KERNEL_SRC_DIR) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M=$(PWD) obj-m=$(u-dma-buf-obj) clean
++
++```
++
++## Install
++
++Load the udmabuf kernel driver using `insmod`. The size of a DMA buffer should be
++provided as an argument as follows.
++The device driver is created, and allocates a DMA buffer with the specified size.
++The maximum number of DMA buffers that can be allocated using `insmod` is 8 (udmabuf0/1/2/3/4/5/6/7).
++
++```console
++zynq$ insmod udmabuf.ko udmabuf0=1048576
++udmabuf udmabuf0: driver installed
++udmabuf udmabuf0: major number   = 248
++udmabuf udmabuf0: minor number   = 0
++udmabuf udmabuf0: phys address   = 0x1e900000
++udmabuf udmabuf0: buffer size    = 1048576
++udmabuf udmabuf0: dma coherent   = 0
++zynq$ ls -la /dev/udmabuf0
++crw------- 1 root root 248, 0 Dec  1 09:34 /dev/udmabuf0
++```
++
++In the above result, the device is only read/write accessible by root.
++If the permission needs to be changed at the load of the kernel module,
++create `/etc/udev/rules.d/99-udmabuf.rules` with the following content.
++
++```rules:99-udmabuf.rules
++KERNEL=="udmabuf[0-9]*", GROUP="root", MODE="0666"
++```
++
++The module can be uninstalled by the `rmmod` command.
++
++```console
++zynq$ rmmod udmabuf
++udmabuf udmabuf0: driver uninstalled
++```
++
++### Installation with the Debian package
++
++For details, refer to the following URL.
++
++*  https://github.com/ikwzm/udmabuf-kmod-dpkg
++
++
++## Configuration via the device tree file
++
++In addition to the allocation via the `insmod` command and its arguments, DMA
++buffers can be allocated by specifying the size in the device tree file.
++When a device tree file contains an entry like the following, udmabuf will
++allocate buffers and create device drivers when loaded by `insmod`.
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			device-name = "udmabuf0";
++			minor-number = <0>;
++			size = <0x00100000>;
++		};
++
++```
++
++```console
++zynq$ insmod udmabuf.ko
++udmabuf udmabuf0: driver installed
++udmabuf udmabuf0: major number   = 248
++udmabuf udmabuf0: minor number   = 0
++udmabuf udmabuf0: phys address   = 0x1e900000
++udmabuf udmabuf0: buffer size    = 1048576
++udmabuf udmabuf0: dma coherent  = 0
++zynq$ ls -la /dev/udmabuf0
++crw------- 1 root root 248, 0 Dec  1 09:34 /dev/udmabuf0
++```
++
++The following properties can be set in the device tree.
++
++  *  `compatible`
++  *  `size`
++  *  `minor-number`
++  *  `device-name`
++  *  `sync-mode`
++  *  `sync-always`
++  *  `sync-offset`
++  *  `sync-size`
++  *  `sync-direction`
++  *  `dma-coherent`
++  *  `memory-region`
++
++
++### `compatible`
++
++The `compatible` property is used to set the corresponding device driver when loading
++udmabuf. The `compatible` property is mandatory. Be sure to specify `compatible`
++property as "ikwzm,udmabuf-0.10.a".
++
++### `size`
++
++The `size` property is used to set the capacity of DMA buffer in bytes.
++The `size` property is mandatory.
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			size = <0x00100000>;
++		};
++
++```
++
++### `minor-number`
++
++The `minor-number` property is used to set the minor number.
++The valid minor number range is 0 to 255. A minor number provided as `insmod`
++argument will has higher precedence, and when definition in the device tree has
++colliding number, creation of the device defined in the device tree will fail.
++
++The `minor-number` property is optional. When the `minor-number` property is not
++specified, udmabuf automatically assigns an appropriate one.
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			minor-number = <0>;
++			size = <0x00100000>;
++		};
++
++```
++
++### `device-name`
++
++The `device-name` property is used to set the name of device.
++
++The `device-name` property is optional. The device name is determined as follow:
++
++  1. If `device-name` property is specified, the value of `device-name` property is used.
++  2. If `device-name` property is not present, and if `minor-number` property is
++     specified, `sprintf("udmabuf%d", minor-number)` is used.
++  3. If `device-name` property is not present, and if `minor-number` property is
++     not present, the entry name of the device tree is used (`udmabuf@0x00` in this example).
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			device-name = "udmabuf0";
++			size = <0x00100000>;
++		};
++
++```
++
++### `sync-mode`
++
++The `sync-mode` property is used to configure the behavior when udmabuf is opened
++with the `O_SYNC` flag.
++
++  * `sync-mode`=<1>: If `O_SYNC` is specified or `sync-always` property is specified,
++    CPU cache is disabled. Otherwise CPU cache is enabled.
++  * `sync-mode`=<2>: If `O_SYNC` is specified or `sync-always` property is specified,
++     CPU cache is disabled but CPU uses write-combine when writing data to DMA buffer
++     improves performance by combining multiple write accesses. Otherwise CPU cache is
++     enabled.
++  * `sync-mode`=<3>: If `O_SYNC` is specified or `sync-always` property is specified,
++     DMA coherency mode is used. Otherwise CPU cache is enabled.
++
++The `sync-mode` property is optional.
++When the `sync-mode` property is not specified, `sync-mode` is set to <1>.
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			size = <0x00100000>;
++			sync-mode = <2>;
++		};
++
++```
++
++Details on `O_SYNC` and cache management will be described in the next section.
++
++### `sync-always`
++
++If the `sync-always` property is specified, when opening udmabuf, it specifies that
++the operation specified by the `sync-mode` property will always be performed
++regardless of `O_SYNC` specification.
++
++The `sync-always` property is optional. 
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			size = <0x00100000>;
++			sync-mode = <2>;
++			sync-always;
++		};
++
++```
++
++Details on `O_SYNC` and cache management will be described in the next section.
++
++### `sync-offset`
++
++The `sync-offset` property is used to set the start of the buffer range when manually
++controlling the cache of udmabuf. 
++
++The `sync-offset` property is optional.
++When the `sync-offset` property is not specified, `sync-offset` is set to <0>.
++
++Details on cache management will be described in the next section.
++
++
++### `sync-size`
++
++The `sync-size` property is used to set the size of the buffer range when manually
++controlling the cache of udmabuf.
++
++The `sync-size` property is optional.
++When the `sync-size` property is not specified, `sync-size` is set to <0>.
++
++Details on cache management will be described in the next section.
++
++
++### `sync-direction`
++
++The `sync-direction` property is used to set the direction of DMA when manually
++controlling the cache of udmabuf.
++
++  * `sync-direction`=<0>: DMA_BIDIRECTIONAL
++  * `sync-direction`=<1>: DMA_TO_DEVICE
++  * `sync-direction`=<2>: DMA_FROM_DEVICE
++
++The `sync-direction` property is optional.
++When the `sync-direction` property is not specified, `sync-direction` is set to <0>.
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			size = <0x00100000>;
++			sync-offset = <0x00010000>;
++			sync-size = <0x000F0000>;
++			sync-direction = <2>;
++		};
++
++```
++
++Details on cache management will be described in the next section.
++
++
++### `dma-coherent`
++
++If the `dma-coherent` property is specified, indicates that coherency between DMA
++buffer and CPU cache can be guaranteed by hardware.
++
++The `dma-coherent` property is optional. When the `dma-coherent` property is not
++specified, indicates that coherency between DMA buffer and CPU cache can not be
++guaranteed by hardware.
++
++```devicetree:devicetree.dts
++		udmabuf@0x00 {
++			compatible = "ikwzm,udmabuf-0.10.a";
++			size = <0x00100000>;
++			dma-coherent;
++		};
++
++```
++
++Details on cache management will be described in the next section.
++
++
++### `memory-region`
++
++Linux can specify the reserved memory area in the device tree. The Linux kernel
++excludes normal memory allocation from the physical memory space specified by
++`reserved-memory` property.
++In order to access this reserved memory area, it is nessasary to use a
++general-purpose memory access driver such as `/dev/mem`, or associate it with
++the device driver in the device tree.
++
++By the `memory-region` property, it can be associated the reserved memory area with udmabuf.
++
++```devicetree:devicetree.dts
++	reserved-memory {
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges;
++		image_buf0: image_buf@0 {
++			compatible = "shared-dma-pool";
++			reusable;
++			reg = <0x3C000000 0x04000000>; 
++			label = "image_buf0";
++		};
++	};
++	udmabuf@0 {
++		compatible = "ikwzm,udmabuf-0.10.a";
++		device-name = "udmabuf0";
++		size = <0x04000000>; // 64MiB
++		memory-region = <&image_buf0>;
++	};
++```
++
++In this example, 64MiB of 0x3C000000 to 0x3FFFFFFF is reserved as "image_buf0".
++In this "image_buf0", specify "shared-dma-pool" in `compatible` property and specify
++the `reusable` property. By specifying these properties, this reserved memory area
++will be allocated by the CMA. Also, you need to be careful about address and size
++alignment.
++
++The above "image_buf0" is associated with "udmabuf@0" with `memory-region` property.
++With this association, "udmabuf@0" reserves physical memory from the CMA area
++specifed by "image_buf0".
++
++The `memory-region` property is optional.
++When the `memory-region` property is not specified, udmabuf allocates the DMA buffer
++from the CMA area allocated to the Linux kernel.
++
++## Device file
++
++When udmabuf is loaded into the kernel, the following device files are created.
++`<device-name>` is a placeholder for the device name described in the previous section.
++
++  * `/dev/<device-name>`
++  * `/sys/class/udmabuf/<device-name>/phys_addr`
++  * `/sys/class/udmabuf/<device-name>/size`
++  * `/sys/class/udmabuf/<device-name>/sync_mode`
++  * `/sys/class/udmabuf/<device-name>/sync_offset`
++  * `/sys/class/udmabuf/<device-name>/sync_size`
++  * `/sys/class/udmabuf/<device-name>/sync_direction`
++  * `/sys/class/udmabuf/<device-name>/sync_owner`
++  * `/sys/class/udmabuf/<device-name>/sync_for_cpu`
++  * `/sys/class/udmabuf/<device-name>/sync_for_device`
++  * `/sys/class/udmabuf/<device-name>/dma_coherent`
++
++
++### `/dev/<device-name>`
++
++`/dev/<device-name>` is used when `mmap()`-ed to the user space or accessed via `read()`/`write()`.
++
++```C:udmabuf_test.c
++    if ((fd  = open("/dev/udmabuf0", O_RDWR)) != -1) {
++        buf = mmap(NULL, buf_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
++        /* Do some read/write access to buf */
++        close(fd);
++    }
++
++```
++
++The device file can be directly read/written by specifying the device as the target of `dd` in the shell.
++
++```console
++zynq$ dd if=/dev/urandom of=/dev/udmabuf0 bs=4096 count=1024
++1024+0 records in
++1024+0 records out
++4194304 bytes (4.2 MB) copied, 3.07516 s, 1.4 MB/s
++```
++
++```console
++zynq$dd if=/dev/udmabuf4 of=random.bin
++8192+0 records in
++8192+0 records out
++4194304 bytes (4.2 MB) copied, 0.173866 s, 24.1 MB/s
++```
++
++### `phys_addr`
++
++The physical address of a DMA buffer can be retrieved by reading `/sys/class/udmabuf/<device-name>/phys_addr`.
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  phys_addr;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/phys_addr", O_RDONLY)) != -1) {
++        read(fd, attr, 1024);
++        sscanf(attr, "%x", &phys_addr);
++        close(fd);
++    }
++
++```
++
++### `size`
++
++The size of a DMA buffer can be retrieved by reading `/sys/class/udmabuf/<device-name>/size`.
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned int   buf_size;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/size", O_RDONLY)) != -1) {
++        read(fd, attr, 1024);
++        sscanf(attr, "%d", &buf_size);
++        close(fd);
++    }
++
++```
++
++### `sync_mode`
++
++The device file `/sys/class/udmabuf/<device-name>/sync_mode` is used to configure
++the behavior when udmabuf is opened with the `O_SYNC` flag.
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_mode = 2;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_mode", O_WRONLY)) != -1) {
++        sprintf(attr, "%d", sync_mode);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++Details on `O_SYNC` and cache management will be described in the next section.
++
++### `sync_offset`
++
++The device file `/sys/class/udmabuf/<device-name>/sync_offset` is used to specify
++the start address of a memory block of which cache is manually managed.
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_offset = 0x00000000;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_offset", O_WRONLY)) != -1) {
++        sprintf(attr, "%d", sync_offset); /* or sprintf(attr, "0x%x", sync_offset); */
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++Details of manual cache management is described in the next section.
++
++### `sync_size`
++
++The device file `/sys/class/udmabuf/<device-name>/sync_size` is used to specify
++the size of a memory block of which cache is manually managed.
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_size = 1024;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_size", O_WRONLY)) != -1) {
++        sprintf(attr, "%d", sync_size); /* or sprintf(attr, "0x%x", sync_size); */
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++Details of manual cache management is described in the next section.
++
++### `sync_direction`
++
++The device file `/sys/class/udmabuf/<device-name>/sync_direction` is used to set the
++direction of DMA transfer to/from the DMA buffer of which cache is manually managed.
++
++  - 0: sets DMA_BIDIRECTIONAL
++  - 1: sets DMA_TO_DEVICE
++  - 2: sets DMA_FROM_DEVICE
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_direction = 1;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_direction", O_WRONLY)) != -1) {
++        sprintf(attr, "%d", sync_direction);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++Details of manual cache management is described in the next section.
++
++
++### `dma_coherent`
++
++The device file `/sys/class/udmabuf/<device-name>/dma_coherent` can read whether
++the coherency of DMA buffer and CPU cache can be guaranteed by hardware.
++It is able to specify whether or not it is able to guarantee by hardware with the
++`dma-coherent` property in the device tree, but this device file is read-only.
++
++If this value is 1, the coherency of DMA buffer and CPU cache can be guaranteed by
++hardware. If this value is 0, the coherency of DMA buffer and CPU cache can be not
++guaranteed by hardware.
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    int dma_coherent;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/dma_coherent", O_RDONLY)) != -1) {
++        read(fd, attr, 1024);
++        sscanf(attr, "%x", &dma_coherent);
++        close(fd);
++    }
++
++```
++
++### `sync_owner`
++
++The device file `/sys/class/udmabuf/<device-name>/sync_owner` reports the owner of
++the memory block in the manual cache management mode.
++If this value is 1, the buffer is owned by the device. If this value is 0, the buffer is owned by the cpu.
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    int sync_owner;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_owner", O_RDONLY)) != -1) {
++        read(fd, attr, 1024);
++        sscanf(attr, "%x", &sync_owner);
++        close(fd);
++    }
++
++```
++
++Details of manual cache management is described in the next section.
++
++### `sync_for_cpu`
++
++In the manual cache management mode, CPU can be the owner of the buffer by writing
++non-zero to the device file `/sys/class/udmabuf/<device-name>/sync_for_cpu`.
++This device file is write only.
++
++If '1' is written to device file, if `sync_direction` is 2(=DMA_FROM_DEVICE) or 0(=DMA_BIDIRECTIONAL),
++the write to the device file invalidates a cache specified by `sync_offset` and `sync_size`.
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_for_cpu = 1;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_for_cpu", O_WRONLY)) != -1) {
++        sprintf(attr, "%d", sync_for_cpu);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++The value written to this device file can include sync_offset, sync_size, and sync_direction. 
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_offset    = 0;
++    unsigned long  sync_size      = 0x10000;
++    unsigned int   sync_direction = 1;
++    unsigned long  sync_for_cpu   = 1;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_for_cpu", O_WRONLY)) != -1) {
++        sprintf(attr, "0x%08X%08X", (sync_offset & 0xFFFFFFFF), (sync_size & 0xFFFFFFF0) | (sync_direction << 2) | sync_for_cpu);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++The sync_offset/sync_size/sync_direction specified by ```sync_for_cpu``` is temporary and does not affect the ```sync_offset``` or ```sync_size``` or ```sync_direction``` device files.
++
++Details of manual cache management is described in the next section.
++
++### `sync_for_device`
++
++In the manual cache management mode, DEVICE can be the owner of the buffer by
++writing non-zero to the device file `/sys/class/udmabuf/<device-name>/sync_for_device`.
++This device file is write only.
++
++If '1' is written to device file, if `sync_direction` is 1(=DMA_TO_DEVICE) or 0(=DMA_BIDIRECTIONAL),
++the write to the device file flushes a cache specified by `sync_offset` and `sync_size` (i.e. the
++cached data, if any, will be updated with data on DDR memory).
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_for_device = 1;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_for_device", O_WRONLY)) != -1) {
++        sprintf(attr, "%d", sync_for_device);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++The value written to this device file can include sync_offset, sync_size, and sync_direction. 
++
++```C:udmabuf_test.c
++    unsigned char  attr[1024];
++    unsigned long  sync_offset     = 0;
++    unsigned long  sync_size       = 0x10000;
++    unsigned int   sync_direction  = 1;
++    unsigned long  sync_for_device = 1;
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_for_device", O_WRONLY)) != -1) {
++        sprintf(attr, "0x%08X%08X", (sync_offset & 0xFFFFFFFF), (sync_size & 0xFFFFFFF0) | (sync_direction << 2) | sync_for_device);
++        write(fd, attr, strlen(attr));
++        close(fd);
++    }
++```
++
++The sync_offset/sync_size/sync_direction specified by ```sync_for_device``` is temporary and does not affect the ```sync_offset``` or ```sync_size``` or ```sync_direction``` device files.
++
++Details of manual cache management is described in the next section.
++
++# Coherency of data on DMA buffer and CPU cache
++
++CPU usually accesses to a DMA buffer on the main memory using cache, and a hardware
++accelerator logic accesses to data stored in the DMA buffer on the main memory.
++In this situation, coherency between data stored on CPU cache and them on the main
++memory should be considered carefully.
++
++## When the coherency is maintained by hardware
++
++When hardware assures the coherency, CPU cache can be turned on without additional
++treatment. For example, ZYNQ provides ACP (Accelerator Coherency Port), and the
++coherency is maintained by hardware as long as the accelerator accesses to the main
++memory via this port.
++
++In this case, accesses from CPU to the main memory can be fast by using CPU cache
++as usual. To enable CPU cache on the DMA buffer allocated by udmabuf, open udmabuf
++without specifying the `O_SYNC` flag.
++
++```C:udmabuf_test.c
++    /* To enable CPU cache on the DMA buffer, */
++    /* open udmabuf without specifying the `O_SYNC` flag. */
++    if ((fd  = open("/dev/udmabuf0", O_RDWR)) != -1) {
++        buf = mmap(NULL, buf_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
++        /* Read/write access to the buffer */
++        close(fd);
++    }
++
++```
++
++The manual management of cache, described in the following section, will not be
++necessary when hardware maintains the coherency.
++
++If the `dma-coherent` property is specified in the device tree, specify that
++coherency can be guaranteed with hardware. In this case, the cache control described
++in "2. Manual cache management with the CPU cache still being enabled" described
++later is not performed.
++
++
++## When hardware does not maintain the coherency
++
++To maintain coherency of data between CPU and the main memory, another coherency
++mechanism is necessary. udmabuf supports two different ways of coherency maintenance;
++one is to disable CPU cache, and the other is to involve manual cache flush/invalidation
++with CPU cache being enabled.
++
++### 1. Disabling CPU cache
++
++To disable CPU cache of allocated DMA buffer, specify the `O_SYNC` flag when opening udmabuf.
++
++```C:udmabuf_test.c
++    /* To disable CPU cache on the DMA buffer, */
++    /* open udmabuf with the `O_SYNC` flag. */
++    if ((fd  = open("/dev/udmabuf0", O_RDWR | O_SYNC)) != -1) {
++        buf = mmap(NULL, buf_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
++        /* Read/write access to the buffer */
++        close(fd);
++    }
++
++```
++
++
++As listed below, `sync_mode` can be used to configure the cache behavior when the
++`O_SYNC` flag is present in `open()`:
++
++  * sync_mode=0: CPU cache is enabled regardless of the `O_SYNC` flag presense.
++  * sync_mode=1: If `O_SYNC` is specified, CPU cache is disabled.
++    If `O_SYNC` is not specified, CPU cache is enabled.
++  * sync_mode=2: If `O_SYNC` is specified, CPU cache is disabled but CPU uses
++    write-combine when writing data to DMA buffer improves performance by combining
++    multiple write accesses. If `O_SYNC` is not specified, CPU cache is enabled.
++  * sync_mode=3: If `O_SYNC` is specified, DMA coherency mode is used.
++    If `O_SYNC` is not specified, CPU cache is enabled.
++  * sync_mode=4: CPU cache is enabled regardless of the `O_SYNC` flag presense. 
++  * sync_mode=5: CPU cache is disabled regardless of the `O_SYNC` flag presense. 
++  * sync_mode=6: CPU uses write-combine to write data to DMA buffer regardless of `O_SYNC` presence.
++  * sync_mode=7: DMA coherency mode is used regardless of `O_SYNC` presence.
++
++As a practical example, the execution times of a sample program listed below were
++measured under several test conditions as presented in the table.
++
++```C:udmabuf_test.c
++int check_buf(unsigned char* buf, unsigned int size)
++{
++    int m = 256;
++    int n = 10;
++    int i, k;
++    int error_count = 0;
++    while(--n > 0) {
++      for(i = 0; i < size; i = i + m) {
++        m = (i+256 < size) ? 256 : (size-i);
++        for(k = 0; k < m; k++) {
++          buf[i+k] = (k & 0xFF);
++        }
++        for(k = 0; k < m; k++) {
++          if (buf[i+k] != (k & 0xFF)) {
++            error_count++;
++          }
++        }
++      }
++    }
++    return error_count;
++}
++int clear_buf(unsigned char* buf, unsigned int size)
++{
++    int n = 100;
++    int error_count = 0;
++    while(--n > 0) {
++      memset((void*)buf, 0, size);
++    }
++    return error_count;
++}
++
++```
++
++
++Table-1　The execution time of the sample program `checkbuf`
++
++<table border="2">
++  <tr>
++    <td align="center" rowspan="2">sync_mode</td>
++    <td align="center" rowspan="2">O_SYNC</td>
++    <td align="center" colspan="3">DMA buffer size</td>
++  </tr>
++  <tr>
++    <td align="center">1MByte</td>
++    <td align="center">5MByte</td>
++    <td align="center">10MByte</td>
++  </tr>
++  <tr>
++    <td rowspan="2">0</td>
++    <td>Not specified</td>
++    <td align="right">0.437[sec]</td>
++    <td align="right">2.171[sec]</td>
++    <td align="right">4.340[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">0.437[sec]</td>
++    <td align="right">2.171[sec]</td>
++    <td align="right">4.340[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">1</td>
++    <td>Not specified</td>
++    <td align="right">0.434[sec]</td>
++    <td align="right">2.179[sec]</td>
++    <td align="right">4.337[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">2.283[sec]</td>
++    <td align="right">11.414[sec]</td>
++    <td align="right">22.830[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">2</td>
++    <td>Not specified</td>
++    <td align="right">0.434[sec]</td>
++    <td align="right">2.169[sec]</td>
++    <td align="right">4.337[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">1.616[sec]</td>
++    <td align="right">8.262[sec]</td>
++    <td align="right">16.562[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">3</td>
++    <td>Not specified</td>
++    <td align="right">0.434[sec]</td>
++    <td align="right">2.169[sec]</td>
++    <td align="right">4.337[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">1.600[sec]</td>
++    <td align="right">8.391[sec]</td>
++    <td align="right">16.587[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">4</td>
++    <td>Not specified</td>
++    <td align="right">0.437[sec]</td>
++    <td align="right">2.171[sec]</td>
++    <td align="right">4.337[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">0.437[sec]</td>
++    <td align="right">2.171[sec]</td>
++    <td align="right">4.337[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">5</td>
++    <td>Not specified</td>
++    <td align="right">2.283[sec]</td>
++    <td align="right">11.414[sec]</td>
++    <td align="right">22.809[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">2.283[sec]</td>
++    <td align="right">11.414[sec]</td>
++    <td align="right">22.840[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">6</td>
++    <td>Not specified</td>
++    <td align="right">1.655[sec]</td>
++    <td align="right">8.391[sec]</td>
++    <td align="right">16.587[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">1.655[sec]</td>
++    <td align="right">8.391[sec]</td>
++    <td align="right">16.587[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">7</td>
++    <td>Not specified</td>
++    <td align="right">1.655[sec]</td>
++    <td align="right">8.391[sec]</td>
++    <td align="right">16.587[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">1.655[sec]</td>
++    <td align="right">8.391[sec]</td>
++    <td align="right">16.587[sec]</td>
++  </tr>
++</table>
++
++Table-2　The execution time of the sample program `clearbuf`
++
++<table border="2">
++  <tr>
++    <td align="center" rowspan="2">sync_mode</td>
++    <td align="center" rowspan="2">O_SYNC</td>
++    <td align="center" colspan="3">DMA buffer size</td>
++  </tr>
++  <tr>
++    <td align="center">1MByte</td>
++    <td align="center">5MByte</td>
++    <td align="center">10MByte</td>
++  </tr>
++  <tr>
++    <td rowspan="2">0</td>
++    <td>Not specified</td>
++    <td align="right">0.067[sec]</td>
++    <td align="right">0.359[sec]</td>
++    <td align="right">0.713[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">0.067[sec]</td>
++    <td align="right">0.362[sec]</td>
++    <td align="right">0.716[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">1</td>
++    <td>Not specified</td>
++    <td align="right">0.067[sec]</td>
++    <td align="right">0.362[sec]</td>
++    <td align="right">0.718[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">0.912[sec]</td>
++    <td align="right">4.563[sec]</td>
++    <td align="right">9.126[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">2</td>
++    <td>Not specified</td>
++    <td align="right">0.068[sec]</td>
++    <td align="right">0.360[sec]</td>
++    <td align="right">0.721[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">0.063[sec]</td>
++    <td align="right">0.310[sec]</td>
++    <td align="right">0.620[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">3</td>
++    <td>Not specified</td>
++    <td align="right">0.068[sec]</td>
++    <td align="right">0.361[sec]</td>
++    <td align="right">0.715[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">0.062[sec]</td>
++    <td align="right">0.310[sec]</td>
++    <td align="right">0.620[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">4</td>
++    <td>Not specified</td>
++    <td align="right">0.068[sec]</td>
++    <td align="right">0.360[sec]</td>
++    <td align="right">0.718[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">0.067[sec]</td>
++    <td align="right">0.360[sec]</td>
++    <td align="right">0.710[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">5</td>
++    <td>Not specified</td>
++    <td align="right">0.913[sec]</td>
++    <td align="right">4.562[sec]</td>
++    <td align="right">9.126[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">0.913[sec]</td>
++    <td align="right">4.562[sec]</td>
++    <td align="right">9.126[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">6</td>
++    <td>Not specified</td>
++    <td align="right">0.062[sec]</td>
++    <td align="right">0.310[sec]</td>
++    <td align="right">0.618[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">0.062[sec]</td>
++    <td align="right">0.310[sec]</td>
++    <td align="right">0.619[sec]</td>
++  </tr>
++  <tr>
++    <td rowspan="2">7</td>
++    <td>Not specified</td>
++    <td align="right">0.062[sec]</td>
++    <td align="right">0.310[sec]</td>
++    <td align="right">0.620[sec]</td>
++  </tr>
++  <tr>
++    <td>Specified</td>
++    <td align="right">0.062[sec]</td>
++    <td align="right">0.310[sec]</td>
++    <td align="right">0.621[sec]</td>
++  </tr>
++</table>
++
++**Note: on using `O_SYNC` flag on ARM64**
++
++For v1.4.4 or earier, udmabuf used ```pgprot_writecombine()``` on ARM64 and sync_mode=1(noncached). The reason is that a bus error occurred in memset() in udmabuf_test.c when using ```pgprot_noncached()```.
++
++However, as reported in https://github.com/ikwzm/udmabuf/pull/28, when using ```pgprot_writecombine()``` on ARM64, it was found that there was a problem with cache coherency.
++
++Therefore, since v1.4.5, when sync_mode = 1, it was changed to use ```pgprot_noncached()```. This is because cache coherency issues are very difficult to understand and difficult to debug. Rather than worrying about the cache coherency problem, we decided that it was easier to understand when the bus error occurred.
++
++This change requires alignment attention when using O_SYNC cache control on ARM64. You probably won't be able to use memset().
++
++If a problem occurs, either cache coherency is maintained by hardware, or use a method described bellow that manually cache management with CPU cache still being enabled.
++
++### 2. Manual cache management with the CPU cache still being enabled
++
++As explained above, by opening udmabuf without specifying the `O_SYNC` flag, CPU cache can be left turned on.
++
++```C:udmabuf_test.c
++    /* To enable CPU cache on the DMA buffer, */
++    /* open udmabuf without specifying the `O_SYNC` flag. */
++    if ((fd  = open("/dev/udmabuf0", O_RDWR)) != -1) {
++        buf = mmap(NULL, buf_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
++        /* Read/write access to the buffer */
++        close(fd);
++    }
++
++```
++
++To manualy manage cache coherency, users need to follow the 
++
++  1. Specify a memory area shared between CPU and accelerator via `sync_offset`
++     and `sync_size` device files. `sync_offset` accepts an offset from the start
++     address of the allocated buffer in units of bytes.
++     The size of the shared memory area should be set to `sync_size` in units of bytes.
++  2. Data transfer direction should be set to `sync_direction`. If the accelerator
++     performs only read accesses to the memory area, `sync_direction` should be set
++     to `1(=DMA_TO_DEVICE)`, and to `2(=DMA_FROM_DEVICE)` if only write accesses. 
++  3. If the accelerator reads and writes data from/to the memory area,
++     `sync_direction` should be set to `0(=DMA_BIDIRECTIONAL)`.
++
++Following the above configuration, `sync_for_cpu` and/or `sync_for_device` should
++be used to set the owner of the buffer specified by the above-mentioned offset and
++the size. 
++
++When CPU accesses to the buffer, '1' should be written to `sync_for_cpu` to set
++CPU as the owner. Upon the write to `sync_for_cpu`, CPU cache is invalidated if
++`sync_direction` is `2(=DMA_FROM_DEVICE)` or `0(=DMA_BIDIRECTIONAL)`.
++Once CPU is becomes the owner of the buffer, the accelerator cannot access the buffer. 
++
++On the other hand, when the accelerator needs to access the buffer, '1' should be
++written to `sync_for_device` to change owership of the buffer to the accelerator.
++Upon the write to `sync_for_device`, the CPU cache of the specified memory area is
++flushed using data on the main memory.
++
++However, if the `dma-coherent` property is specified in the device tree, CPU cache
++is not invalidated and flushed.
++
++
++# Example using udmabuf with Python
++
++The programming language "Python" provides an extension called "NumPy".
++This section explains how to do the same operation as "ndarry" by mapping the DMA
++buffer allocated in the kernel with `memmap` of "NumPy" with udmabuf.
++
++
++## Udmabuf Class
++
++
++```python:udmabuf.py
++
++import numpy as np
++
++class Udmabuf:
++    """A simple udmabuf class"""
++    def __init__(self, name):
++        self.name           = name
++        self.device_name    = '/dev/%s'               % self.name
++        self.class_path     = '/sys/class/udmabuf/%s' % self.name
++        self.phys_addr      = self.get_value('phys_addr', 16)
++        self.buf_size       = self.get_value('size')
++        self.sync_offset    = None
++        self.sync_size      = None
++        self.sync_direction = None
++
++    def memmap(self, dtype, shape):
++        self.item_size = np.dtype(dtype).itemsize
++        self.array     = np.memmap(self.device_name, dtype=dtype, mode='r+', shape=shape)
++        return self.array
++
++    def get_value(self, name, radix=10):
++        value = None
++        for line in open(self.class_path + '/' + name):
++            value = int(line, radix)
++            break
++        return value
++    def set_value(self, name, value):
++        f = open(self.class_path + '/' + name, 'w')
++        f.write(str(value))
++        f.close
++
++    def set_sync_area(self, direction=None, offset=None, size=None):
++        if offset is None:
++            self.sync_offset    = self.get_value('sync_offset')
++        else:
++            self.set_value('sync_offset', offset)
++            self.sync_offset    = offset
++        if size   is None:
++            self.sync_size      = self.get_value('sync_size')
++        else:
++            self.set_value('sync_size', size)
++            self.sync_size      = size
++        if direction is None:
++            self.sync_direction = self.get_value('sync_direction')
++        else:
++            self.set_value('sync_direction', direction)
++            self.sync_direction = direction
++
++    def set_sync_to_device(self, offset=None, size=None):
++        self.set_sync_area(1, offset, size)
++
++    def set_sync_to_cpu(self, offset=None, size=None):
++        self.set_sync_area(2, offset, size)
++
++    def set_sync_to_bidirectional(self, offset=None, size=None):
++        self.set_sync_area(3, offset, size)
++
++    def sync_for_cpu(self):
++        self.set_value('sync_for_cpu', 1)
++
++    def sync_for_device(self):
++        self.set_value('sync_for_device', 1)
++
++```
++
++## udmabuf_test.py
++
++```python:udmabuf_test.py
++
++from udmabuf import Udmabuf
++import numpy as np
++import time
++def test_1(a):
++    for i in range (0,9):
++        a *= 0
++        a += 0x31
++if __name__ == '__main__':
++    udmabuf      = Udmabuf('udmabuf0')
++    test_dtype   = np.uint8
++    test_size    = udmabuf.buf_size/(np.dtype(test_dtype).itemsize)
++    udmabuf.memmap(dtype=test_dtype, shape=(test_size))
++    comparison   = np.zeros(test_size, dtype=test_dtype)
++    print ("test_size  : %d" % test_size)
++    start        = time.time()
++    test_1(udmabuf.mem_map)
++    elapsed_time = time.time() - start
++    print ("udmabuf0   : elapsed_time:{0}".format(elapsed_time)) + "[sec]"
++    start        = time.time()
++    test_1(comparison)
++    elapsed_time = time.time() - start
++    print ("comparison : elapsed_time:{0}".format(elapsed_time)) + "[sec]"
++    if np.array_equal(udmabuf.mem_map, comparison):
++        print ("udmabuf0 == comparison : OK")
++    else:
++        print ("udmabuf0 != comparison : NG")
++
++```
++
++## Execution result
++
++Install udmabuf. In this example, 8MiB DMA buffer is reserved as "udmabuf0".
++
++```console
++zynq# insmod udmabuf.ko udmabuf0=8388608
++[34654.622746] udmabuf udmabuf0: driver installed
++[34654.627153] udmabuf udmabuf0: major number   = 237
++[34654.631889] udmabuf udmabuf0: minor number   = 0
++[34654.636685] udmabuf udmabuf0: phys address   = 0x1f300000
++[34654.642002] udmabuf udmabuf0: buffer size    = 8388608
++[34654.642002] udmabuf udmabuf0: dma-coherent   = 0
++
++```
++
++Executing the script in the previous section gives the following results.
++
++```console
++zynq# python udmabuf_test.py
++test_size  : 8388608
++udmabuf0   : elapsed_time:1.53304982185[sec]
++comparison : elapsed_time:1.536673069[sec]
++udmabuf0 == comparison : OK
++```
++
++The execution time for "udmabuf0"(buffer area secured in the kernel) and the same
++operation with ndarray (comparison) were almost the same.
++That is, it seems that "udmabuf0" is also effective CPU cache.
++
++
++I confirmed the contents of "udmabuf0" after running this script.
++
++```console
++zynq# dd if=/dev/udmabuf0 of=udmabuf0.bin bs=8388608
++1+0 records in
++1+0 records out
++8388608 bytes (8.4 MB) copied, 0.151531 s, 55.4 MB/s
++shell# 
++shell# od -t x1 udmabuf0.bin
++0000000 31 31 31 31 31 31 31 31 31 31 31 31 31 31 31 31
++*
++40000000
++```
++
++After executing the script, it was confirmed that the result of the execution remains
++in the buffer. Just to be sure, let's check that NumPy can read it.
++
++```console
++zynq# python
++Python 2.7.9 (default, Aug 13 2016, 17:56:53)
++[GCC 4.9.2] on linux2
++Type "help", "copyright", "credits" or "license" for more information.
++>>> import numpy as np
++>>> a = np.memmap('/dev/udmabuf0', dtype=np.uint8, mode='r+', shape=(8388608))
++>>> a
++memmap([49, 49, 49, ..., 49, 49, 49], dtype=uint8)
++>>> a.itemsize
++1
++>>> a.size
++8388608
++>>>
++```
++
+diff --git b/drivers/udmabuf/udmabuf.c b/drivers/udmabuf/udmabuf.c
+new file mode 100644
+index 0000000..969c361
+--- /dev/null
++++ b/drivers/udmabuf/udmabuf.c
+@@ -0,0 +1,1664 @@
++/*********************************************************************************
++ *
++ *       Copyright (C) 2015-2020 Ichiro Kawazome
++ *       All rights reserved.
++ * 
++ *       Redistribution and use in source and binary forms, with or without
++ *       modification, are permitted provided that the following conditions
++ *       are met:
++ * 
++ *         1. Redistributions of source code must retain the above copyright
++ *            notice, this list of conditions and the following disclaimer.
++ * 
++ *         2. Redistributions in binary form must reproduce the above copyright
++ *            notice, this list of conditions and the following disclaimer in
++ *            the documentation and/or other materials provided with the
++ *            distribution.
++ * 
++ *       THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ *       "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ *       LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ *       A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT
++ *       OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ *       SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ *       LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ *       DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ *       THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
++ *       (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ *       OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ * 
++ ********************************************************************************/
++#include <linux/cdev.h>
++#include <linux/clk.h>
++#include <linux/dma-mapping.h>
++#include <linux/fs.h>
++#include <linux/idr.h>
++#include <linux/init.h>
++#include <linux/interrupt.h>
++#include <linux/io.h>
++#include <linux/ioport.h>
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/mutex.h>
++#include <linux/of.h>
++#include <linux/of_device.h>
++#include <linux/sched.h>
++#include <linux/device.h>
++#include <linux/platform_device.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++#include <linux/sysctl.h>
++#include <linux/types.h>
++#include <linux/uaccess.h>
++#include <linux/scatterlist.h>
++#include <linux/pagemap.h>
++#include <linux/list.h>
++#include <linux/spinlock.h>
++#include <linux/version.h>
++#include <asm/page.h>
++#include <asm/byteorder.h>
++
++/**
++ * DOC: Udmabuf Constants 
++ */
++
++MODULE_DESCRIPTION("User space mappable DMA buffer device driver");
++MODULE_AUTHOR("ikwzm");
++MODULE_LICENSE("Dual BSD/GPL");
++
++#define DRIVER_VERSION     "1.4.8"
++#define DRIVER_NAME        "udmabuf"
++#define DEVICE_NAME_FORMAT "udmabuf%d"
++#define DEVICE_MAX_NUM      256
++#define UDMABUF_DEBUG       1
++#define USE_VMA_FAULT       1
++
++#if     ((LINUX_VERSION_CODE >= 0x031300) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64)))
++#define USE_DMA_COHERENT    1
++#else
++#define USE_DMA_COHERENT    0
++#endif
++
++#if     (LINUX_VERSION_CODE >= 0x030B00)
++#define USE_DEV_GROUPS      1
++#else
++#define USE_DEV_GROUPS      0
++#endif
++
++#if     ((LINUX_VERSION_CODE >= 0x040100) && defined(CONFIG_OF))
++#define USE_OF_RESERVED_MEM 1
++#else
++#define USE_OF_RESERVED_MEM 0
++#endif
++
++#if     ((LINUX_VERSION_CODE >= 0x040100) && defined(CONFIG_OF))
++#define USE_OF_DMA_CONFIG   1
++#else
++#define USE_OF_DMA_CONFIG   0
++#endif
++
++#if     (UDMABUF_DEBUG == 1)
++#define UDMABUF_DEBUG_CHECK(this,debug) (this->debug)
++#else
++#define UDMABUF_DEBUG_CHECK(this,debug) (0)
++#endif
++
++#if     (USE_OF_RESERVED_MEM == 1)
++#include <linux/of_reserved_mem.h>
++#endif
++
++#ifndef U64_MAX
++#define U64_MAX ((u64)~0ULL)
++#endif
++
++#if     (LINUX_VERSION_CODE < 0x041100)
++typedef int vm_fault_t;
++#endif
++
++/**
++ * DOC: Udmabuf Static Variables
++ *
++ * * udmabuf_sys_class - udmabuf system class
++ * * init_enable       - udmabuf install/uninstall infomation enable
++ * * dma_mask_bit      - udmabuf dma mask bit
++ */
++
++/**
++ * udmabuf_sys_class - udmabuf system class
++ */
++static struct class*  udmabuf_sys_class = NULL;
++
++/**
++ * info_enable module parameter
++ */
++static int        info_enable = 1;
++module_param(     info_enable , int, S_IRUGO);
++MODULE_PARM_DESC( info_enable , "udmabuf install/uninstall infomation enable");
++
++/**
++ * dma_mask_bit module parameter
++ */
++static int        dma_mask_bit = 32;
++module_param(     dma_mask_bit, int, S_IRUGO);
++MODULE_PARM_DESC( dma_mask_bit, "udmabuf dma mask bit(default=32)");
++
++/**
++ * DOC: Udmabuf Device Data Structure
++ *
++ * This section defines the structure of udmabuf device.
++ *
++ */
++
++/**
++ * struct udmabuf_device_data - udmabuf device data structure.
++ */
++struct udmabuf_device_data {
++    struct device*       sys_dev;
++    struct device*       dma_dev;
++    struct cdev          cdev;
++    dev_t                device_number;
++    struct mutex         sem;
++    bool                 is_open;
++    int                  size;
++    size_t               alloc_size;
++    void*                virt_addr;
++    dma_addr_t           phys_addr;
++    int                  sync_mode;
++    u64                  sync_offset;
++    size_t               sync_size;
++    int                  sync_direction;
++    bool                 sync_owner;
++    u64                  sync_for_cpu;
++    u64                  sync_for_device;
++#if (USE_OF_RESERVED_MEM == 1)
++    bool                 of_reserved_mem;
++#endif
++#if ((UDMABUF_DEBUG == 1) && (USE_VMA_FAULT == 1))
++    bool                 debug_vma;
++#endif
++};
++
++/**
++ * sync_mode(synchronous mode) value
++ */
++#define SYNC_MODE_INVALID       (0x00)
++#define SYNC_MODE_NONCACHED     (0x01)
++#define SYNC_MODE_WRITECOMBINE  (0x02)
++#define SYNC_MODE_DMACOHERENT   (0x03)
++#define SYNC_MODE_MASK          (0x03)
++#define SYNC_MODE_MIN           (0x01)
++#define SYNC_MODE_MAX           (0x03)
++#define SYNC_ALWAYS             (0x04)
++
++/**
++ * DOC: Udmabuf System Class Device File Description
++ *
++ * This section define the device file created in system class when udmabuf is 
++ * loaded into the kernel.
++ *
++ * The device file created in system class is as follows.
++ *
++ * * /sys/class/udmabuf/<device-name>/driver_version
++ * * /sys/class/udmabuf/<device-name>/phys_addr
++ * * /sys/class/udmabuf/<device-name>/size
++ * * /sys/class/udmabuf/<device-name>/sync_mode
++ * * /sys/class/udmabuf/<device-name>/sync_offset
++ * * /sys/class/udmabuf/<device-name>/sync_size
++ * * /sys/class/udmabuf/<device-name>/sync_direction
++ * * /sys/class/udmabuf/<device-name>/sync_owner
++ * * /sys/class/udmabuf/<device-name>/sync_for_cpu
++ * * /sys/class/udmabuf/<device-name>/sync_for_device
++ * * /sys/class/udmabuf/<device-name>/dma_coherent
++ * * 
++ */
++
++#define  SYNC_COMMAND_DIR_MASK        (0x000000000000000C)
++#define  SYNC_COMMAND_DIR_SHIFT       (2)
++#define  SYNC_COMMAND_SIZE_MASK       (0x00000000FFFFFFF0)
++#define  SYNC_COMMAND_SIZE_SHIFT      (0)
++#define  SYNC_COMMAND_OFFSET_MASK     (0xFFFFFFFF00000000)
++#define  SYNC_COMMAND_OFFSET_SHIFT    (32)
++#define  SYNC_COMMAND_ARGMENT_MASK    (0xFFFFFFFFFFFFFFFE)
++/**
++ * udmabuf_sync_command_argments() - get argment for dma_sync_single_for_cpu() or dma_sync_single_for_device()
++ *                                  
++ * @this:       Pointer to the udmabuf device data structure.
++ * @command     sync command (this->sync_for_cpu or this->sync_for_device)
++ * @phys_addr   Pointer to the phys_addr for dma_sync_single_for_...()
++ * @size        Pointer to the size for dma_sync_single_for_...()
++ * @direction   Pointer to the direction for dma_sync_single_for_...()
++ * Return:      Success(=0) or error status(<0).
++ */
++static int udmabuf_sync_command_argments(
++    struct udmabuf_device_data *this     ,
++    u64                         command  ,
++    dma_addr_t                 *phys_addr,
++    size_t                     *size     ,
++    enum dma_data_direction    *direction
++) {
++    u64    sync_offset   ;
++    size_t sync_size     ;
++    int    sync_direction;
++    if ((command & SYNC_COMMAND_ARGMENT_MASK) != 0) {
++        sync_offset    = (u64   )((command & SYNC_COMMAND_OFFSET_MASK) >> SYNC_COMMAND_OFFSET_SHIFT);
++        sync_size      = (size_t)((command & SYNC_COMMAND_SIZE_MASK  ) >> SYNC_COMMAND_SIZE_SHIFT  );
++        sync_direction = (int   )((command & SYNC_COMMAND_DIR_MASK   ) >> SYNC_COMMAND_DIR_SHIFT   );
++    } else {
++        sync_offset    = this->sync_offset;
++        sync_size      = this->sync_size;
++        sync_direction = this->sync_direction;
++    }
++    if (sync_offset + sync_size > this->size)
++        return -EINVAL;
++    switch(sync_direction) {
++        case 1 : *direction = DMA_TO_DEVICE    ; break;
++        case 2 : *direction = DMA_FROM_DEVICE  ; break;
++        default: *direction = DMA_BIDIRECTIONAL; break;
++    }
++    *phys_addr = this->phys_addr + sync_offset;
++    *size      = sync_size;
++    return 0;
++} 
++
++/**
++ * udmabuf_sync_for_cpu() - call dma_sync_single_for_cpu() when (sync_for_cpu != 0)
++ * @this:       Pointer to the udmabuf device data structure.
++ * Return:      Success(=0) or error status(<0).
++ */
++static int udmabuf_sync_for_cpu(struct udmabuf_device_data* this)
++{
++    int status = 0;
++
++    if (this->sync_for_cpu) {
++        dma_addr_t              phys_addr;
++        size_t                  size;
++        enum dma_data_direction direction;
++        status = udmabuf_sync_command_argments(this, this->sync_for_cpu, &phys_addr, &size, &direction);
++        if (status == 0) {
++            dma_sync_single_for_cpu(this->dma_dev, phys_addr, size, direction);
++            this->sync_for_cpu = 0;
++            this->sync_owner   = 0;
++        }
++    }
++    return status;
++}
++
++/**
++ * udmabuf_sync_for_device() - call dma_sync_single_for_device() when (sync_for_device != 0)
++ * @this:       Pointer to the udmabuf device data structure.
++ * Return:      Success(=0) or error status(<0).
++ */
++static int udmabuf_sync_for_device(struct udmabuf_device_data* this)
++{
++    int status = 0;
++
++    if (this->sync_for_device) {
++        dma_addr_t              phys_addr;
++        size_t                  size;
++        enum dma_data_direction direction;
++        status = udmabuf_sync_command_argments(this, this->sync_for_device, &phys_addr, &size, &direction);
++        if (status == 0) {
++            dma_sync_single_for_device(this->dma_dev, phys_addr, size, direction);
++            this->sync_for_device = 0;
++            this->sync_owner      = 1;
++        }
++    }
++    return status;
++}
++
++#define DEF_ATTR_SHOW(__attr_name, __format, __value) \
++static ssize_t udmabuf_show_ ## __attr_name(struct device *dev, struct device_attribute *attr, char *buf) \
++{                                                            \
++    ssize_t status;                                          \
++    struct udmabuf_device_data* this = dev_get_drvdata(dev); \
++    if (mutex_lock_interruptible(&this->sem) != 0)           \
++        return -ERESTARTSYS;                                 \
++    status = sprintf(buf, __format, (__value));              \
++    mutex_unlock(&this->sem);                                \
++    return status;                                           \
++}
++
++static inline int NO_ACTION(struct udmabuf_device_data* this){return 0;}
++
++#define DEF_ATTR_SET(__attr_name, __min, __max, __pre_action, __post_action) \
++static ssize_t udmabuf_set_ ## __attr_name(struct device *dev, struct device_attribute *attr, const char *buf, size_t size) \
++{ \
++    ssize_t       status; \
++    u64           value;  \
++    struct udmabuf_device_data* this = dev_get_drvdata(dev);                 \
++    if (0 != mutex_lock_interruptible(&this->sem)){return -ERESTARTSYS;}     \
++    if (0 != (status = kstrtoull(buf, 0, &value))){            goto failed;} \
++    if ((value < __min) || (__max < value)) {status = -EINVAL; goto failed;} \
++    if (0 != (status = __pre_action(this)))       {            goto failed;} \
++    this->__attr_name = value;                                               \
++    if (0 != (status = __post_action(this)))      {            goto failed;} \
++    status = size;                                                           \
++  failed:                                                                    \
++    mutex_unlock(&this->sem);                                                \
++    return status;                                                           \
++}
++
++DEF_ATTR_SHOW(driver_version , "%s\n"    , DRIVER_VERSION                                 );
++DEF_ATTR_SHOW(size           , "%d\n"    , this->size                                     );
++DEF_ATTR_SHOW(phys_addr      , "%pad\n"  , &this->phys_addr                               );
++DEF_ATTR_SHOW(sync_mode      , "%d\n"    , this->sync_mode                                );
++DEF_ATTR_SET( sync_mode                  , 0, 7,        NO_ACTION, NO_ACTION              );
++DEF_ATTR_SHOW(sync_offset    , "0x%llx\n", this->sync_offset                              );
++DEF_ATTR_SET( sync_offset                , 0, U64_MAX,  NO_ACTION, NO_ACTION              );
++DEF_ATTR_SHOW(sync_size      , "%zu\n"   , this->sync_size                                );
++DEF_ATTR_SET( sync_size                  , 0, SIZE_MAX, NO_ACTION, NO_ACTION              );
++DEF_ATTR_SHOW(sync_direction , "%d\n"    , this->sync_direction                           );
++DEF_ATTR_SET( sync_direction             , 0, 2,        NO_ACTION, NO_ACTION              );
++DEF_ATTR_SHOW(sync_owner     , "%d\n"    , this->sync_owner                               );
++DEF_ATTR_SHOW(sync_for_cpu   , "%llu\n"  , this->sync_for_cpu                             );
++DEF_ATTR_SET( sync_for_cpu               , 0, U64_MAX,  NO_ACTION, udmabuf_sync_for_cpu   );
++DEF_ATTR_SHOW(sync_for_device, "%llu\n"  , this->sync_for_device                          );
++DEF_ATTR_SET( sync_for_device            , 0, U64_MAX,  NO_ACTION, udmabuf_sync_for_device);
++#if (USE_DMA_COHERENT == 1)
++DEF_ATTR_SHOW(dma_coherent   , "%d\n"    , is_device_dma_coherent(this->dma_dev)          );
++#endif
++#if ((UDMABUF_DEBUG == 1) && (USE_VMA_FAULT == 1))
++DEF_ATTR_SHOW(debug_vma      , "%d\n"    , this->debug_vma                                );
++DEF_ATTR_SET( debug_vma                  , 0, 1,        NO_ACTION, NO_ACTION              );
++#endif
++
++static struct device_attribute udmabuf_device_attrs[] = {
++  __ATTR(driver_version , 0444, udmabuf_show_driver_version  , NULL                       ),
++  __ATTR(size           , 0444, udmabuf_show_size            , NULL                       ),
++  __ATTR(phys_addr      , 0444, udmabuf_show_phys_addr       , NULL                       ),
++  __ATTR(sync_mode      , 0664, udmabuf_show_sync_mode       , udmabuf_set_sync_mode      ),
++  __ATTR(sync_offset    , 0664, udmabuf_show_sync_offset     , udmabuf_set_sync_offset    ),
++  __ATTR(sync_size      , 0664, udmabuf_show_sync_size       , udmabuf_set_sync_size      ),
++  __ATTR(sync_direction , 0664, udmabuf_show_sync_direction  , udmabuf_set_sync_direction ),
++  __ATTR(sync_owner     , 0444, udmabuf_show_sync_owner      , NULL                       ),
++  __ATTR(sync_for_cpu   , 0664, udmabuf_show_sync_for_cpu    , udmabuf_set_sync_for_cpu   ),
++  __ATTR(sync_for_device, 0664, udmabuf_show_sync_for_device , udmabuf_set_sync_for_device),
++#if (USE_DMA_COHERENT == 1)
++  __ATTR(dma_coherent   , 0444, udmabuf_show_dma_coherent    , NULL                       ),
++#endif
++#if ((UDMABUF_DEBUG == 1) && (USE_VMA_FAULT == 1))
++  __ATTR(debug_vma      , 0664, udmabuf_show_debug_vma       , udmabuf_set_debug_vma      ),
++#endif
++  __ATTR_NULL,
++};
++
++#if (USE_DEV_GROUPS == 1)
++
++#define udmabuf_device_attrs_size (sizeof(udmabuf_device_attrs)/sizeof(udmabuf_device_attrs[0]))
++
++static struct attribute* udmabuf_attrs[udmabuf_device_attrs_size] = {
++  NULL
++};
++static struct attribute_group udmabuf_attr_group = {
++  .attrs = udmabuf_attrs
++};
++static const struct attribute_group* udmabuf_attr_groups[] = {
++  &udmabuf_attr_group,
++  NULL
++};
++
++static inline void udmabuf_sys_class_set_attributes(void)
++{
++    int i;
++    for (i = 0 ; i < udmabuf_device_attrs_size-1 ; i++) {
++        udmabuf_attrs[i] = &(udmabuf_device_attrs[i].attr);
++    }
++    udmabuf_attrs[i] = NULL;
++    udmabuf_sys_class->dev_groups = udmabuf_attr_groups;
++}
++#else
++
++static inline void udmabuf_sys_class_set_attributes(void)
++{
++    udmabuf_sys_class->dev_attrs  = udmabuf_device_attrs;
++}
++
++#endif
++
++#if (USE_VMA_FAULT == 1)
++/**
++ * DOC: Udmabuf Device VM Area Operations
++ *
++ * This section defines the operation of vm when mmap-ed the udmabuf device file.
++ *
++ * * udmabuf_device_vma_open()  - udmabuf device vm area open operation.
++ * * udmabuf_device_vma_close() - udmabuf device vm area close operation.
++ * * udmabuf_device_vma_fault() - udmabuf device vm area fault operation.
++ * * udmabuf_device_vm_ops      - udmabuf device vm operation table.
++ */
++
++/**
++ * udmabuf_device_vma_open() - udmabuf device vm area open operation.
++ * @vma:        Pointer to the vm area structure.
++ * Return:      None
++ */
++static void udmabuf_device_vma_open(struct vm_area_struct* vma)
++{
++    struct udmabuf_device_data* this = vma->vm_private_data;
++    if (UDMABUF_DEBUG_CHECK(this, debug_vma))
++        dev_info(this->dma_dev, "vma_open(virt_addr=0x%lx, offset=0x%lx)\n", vma->vm_start, vma->vm_pgoff<<PAGE_SHIFT);
++}
++
++/**
++ * udmabuf_device_vma_close() - udmabuf device vm area close operation.
++ * @vma:        Pointer to the vm area structure.
++ * Return:      None
++ */
++static void udmabuf_device_vma_close(struct vm_area_struct* vma)
++{
++    struct udmabuf_device_data* this = vma->vm_private_data;
++    if (UDMABUF_DEBUG_CHECK(this, debug_vma))
++        dev_info(this->dma_dev, "vma_close()\n");
++}
++
++/**
++ * _udmabuf_device_vma_fault() - udmabuf device vm area fault operation.
++ * @vma:        Pointer to the vm area structure.
++ * @vfm:        Pointer to the vm fault structure.
++ * Return:      Success(=0) or error status(<0).
++ */
++static inline vm_fault_t _udmabuf_device_vma_fault(struct vm_area_struct* vma, struct vm_fault* vmf)
++{
++    struct udmabuf_device_data* this = vma->vm_private_data;
++    unsigned long offset             = vmf->pgoff << PAGE_SHIFT;
++    unsigned long phys_addr          = this->phys_addr + offset;
++    unsigned long page_frame_num     = phys_addr  >> PAGE_SHIFT;
++    unsigned long request_size       = 1          << PAGE_SHIFT;
++    unsigned long available_size     = this->alloc_size -offset;
++    unsigned long virt_addr;
++
++#if (LINUX_VERSION_CODE >= 0x040A00)
++    virt_addr = vmf->address;
++#else
++    virt_addr = (unsigned long)vmf->virtual_address;
++#endif
++
++    if (UDMABUF_DEBUG_CHECK(this, debug_vma))
++        dev_info(this->dma_dev,
++                 "vma_fault(virt_addr=%pad, phys_addr=%pad)\n", &virt_addr, &phys_addr
++        );
++
++    if (request_size > available_size)
++        return VM_FAULT_SIGBUS;
++
++    if (!pfn_valid(page_frame_num))
++        return VM_FAULT_SIGBUS;
++
++#if (LINUX_VERSION_CODE >= 0x041200)
++    return vmf_insert_pfn(vma, virt_addr, page_frame_num);
++#else
++    {
++        int err = vm_insert_pfn(vma, virt_addr, page_frame_num);
++        if (err == -ENOMEM)
++            return VM_FAULT_OOM;
++        if (err < 0 && err != -EBUSY)
++            return VM_FAULT_SIGBUS;
++
++        return VM_FAULT_NOPAGE;
++    }
++#endif
++}
++
++#if (LINUX_VERSION_CODE >= 0x040B00)
++/**
++ * udmabuf_device_vma_fault() - udmabuf device vm area fault operation.
++ * @vfm:        Pointer to the vm fault structure.
++ * Return:      Success(=0) or error status(<0).
++ */
++static vm_fault_t udmabuf_device_vma_fault(struct vm_fault* vmf)
++{
++    return _udmabuf_device_vma_fault(vmf->vma, vmf);
++}
++#else
++/**
++ * udmabuf_device_vma_fault() - udmabuf device vm area fault operation.
++ * @vma:        Pointer to the vm area structure.
++ * @vfm:        Pointer to the vm fault structure.
++ * Return:      Success(=0) or error status(<0).
++ */
++static vm_fault_t udmabuf_device_vma_fault(struct vm_area_struct* vma, struct vm_fault* vmf)
++{
++    return _udmabuf_device_vma_fault(vma, vmf);
++}
++#endif
++
++/**
++ * udmabuf device vm operation table.
++ */
++static const struct vm_operations_struct udmabuf_device_vm_ops = {
++    .open    = udmabuf_device_vma_open ,
++    .close   = udmabuf_device_vma_close,
++    .fault   = udmabuf_device_vma_fault,
++};
++
++#endif /* #if (USE_VMA_FAULT == 1) */
++
++/**
++ * DOC: Udmabuf Device File Operations
++ *
++ * This section defines the operation of the udmabuf device file.
++ *
++ * * udmabuf_device_file_open()    - udmabuf device file open operation.
++ * * udmabuf_device_file_release() - udmabuf device file release operation.
++ * * udmabuf_device_file_mmap()    - udmabuf device file memory map operation.
++ * * udmabuf_device_file_read()    - udmabuf device file read operation.
++ * * udmabuf_device_file_write()   - udmabuf device file write operation.
++ * * udmabuf_device_file_llseek()  - udmabuf device file llseek operation.
++ * * udmabuf_device_file_ops       - udmabuf device file operation table.
++ */
++
++/**
++ * udmabuf_device_file_open() - udmabuf device file open operation.
++ * @inode:      Pointer to the inode structure of this device.
++ * @file:       to the file structure.
++ * Return:      Success(=0) or error status(<0).
++ */
++static int udmabuf_device_file_open(struct inode *inode, struct file *file)
++{
++    struct udmabuf_device_data* this;
++    int status = 0;
++
++    this = container_of(inode->i_cdev, struct udmabuf_device_data, cdev);
++    file->private_data = this;
++    this->is_open = 1;
++
++    return status;
++}
++
++/**
++ * udmabuf_device_file_release() - udmabuf device file release operation.
++ * @inode:      Pointer to the inode structure of this device.
++ * @file:       Pointer to the file structure.
++ * Return:      Success(=0) or error status(<0).
++ */
++static int udmabuf_device_file_release(struct inode *inode, struct file *file)
++{
++    struct udmabuf_device_data* this = file->private_data;
++
++    this->is_open = 0;
++
++    return 0;
++}
++
++/**
++ * _PGPROT_NONCACHED    : vm_page_prot value when ((sync_mode & SYNC_MODE_MASK) == SYNC_MODE_NONCACHED   )
++ * _PGPROT_WRITECOMBINE : vm_page_prot value when ((sync_mode & SYNC_MODE_MASK) == SYNC_MODE_WRITECOMBINE)
++ * _PGPROT_DMACOHERENT  : vm_page_prot value when ((sync_mode & SYNC_MODE_MASK) == SYNC_MODE_DMACOHERENT )
++ */
++#if     defined(CONFIG_ARM)
++#define _PGPROT_NONCACHED(vm_page_prot)    pgprot_noncached(vm_page_prot)
++#define _PGPROT_WRITECOMBINE(vm_page_prot) pgprot_writecombine(vm_page_prot)
++#define _PGPROT_DMACOHERENT(vm_page_prot)  pgprot_dmacoherent(vm_page_prot)
++#elif   defined(CONFIG_ARM64)
++#define _PGPROT_NONCACHED(vm_page_prot)    pgprot_noncached(vm_page_prot)
++#define _PGPROT_WRITECOMBINE(vm_page_prot) pgprot_writecombine(vm_page_prot)
++#define _PGPROT_DMACOHERENT(vm_page_prot)  pgprot_writecombine(vm_page_prot)
++#else
++#define _PGPROT_NONCACHED(vm_page_prot)    pgprot_noncached(vm_page_prot)
++#define _PGPROT_WRITECOMBINE(vm_page_prot) pgprot_writecombine(vm_page_prot)
++#define _PGPROT_DMACOHERENT(vm_page_prot)  pgprot_writecombine(vm_page_prot)
++#endif
++
++/**
++ * udmabuf_device_file_mmap() - udmabuf device file memory map operation.
++ * @file:       Pointer to the file structure.
++ * @vma:        Pointer to the vm area structure.
++ * Return:      Success(=0) or error status(<0).
++ */
++static int udmabuf_device_file_mmap(struct file *file, struct vm_area_struct* vma)
++{
++    struct udmabuf_device_data* this = file->private_data;
++
++    if (vma->vm_pgoff + vma_pages(vma) > (this->alloc_size >> PAGE_SHIFT))
++        return -EINVAL;
++
++    if ((file->f_flags & O_SYNC) | (this->sync_mode & SYNC_ALWAYS)) {
++        switch (this->sync_mode & SYNC_MODE_MASK) {
++            case SYNC_MODE_NONCACHED :
++                vma->vm_flags    |= VM_IO;
++                vma->vm_page_prot = _PGPROT_NONCACHED(vma->vm_page_prot);
++                break;
++            case SYNC_MODE_WRITECOMBINE :
++                vma->vm_flags    |= VM_IO;
++                vma->vm_page_prot = _PGPROT_WRITECOMBINE(vma->vm_page_prot);
++                break;
++            case SYNC_MODE_DMACOHERENT :
++                vma->vm_flags    |= VM_IO;
++                vma->vm_page_prot = _PGPROT_DMACOHERENT(vma->vm_page_prot);
++                break;
++            default :
++                break;
++        }
++    }
++    vma->vm_private_data = this;
++
++#if (USE_VMA_FAULT == 1)
++    {
++        unsigned long page_frame_num = (this->phys_addr >> PAGE_SHIFT) + vma->vm_pgoff;
++        if (pfn_valid(page_frame_num)) {
++            vma->vm_flags |= VM_PFNMAP;
++            vma->vm_ops    = &udmabuf_device_vm_ops;
++            udmabuf_device_vma_open(vma);
++            return 0;
++        }
++    }
++#endif
++
++    return dma_mmap_coherent(this->dma_dev, vma, this->virt_addr, this->phys_addr, this->alloc_size);
++}
++
++/**
++ * udmabuf_device_file_read() - udmabuf device file read operation.
++ * @file:       Pointer to the file structure.
++ * @buff:       Pointer to the user buffer.
++ * @count:      The number of bytes to be read.
++ * @ppos:       Pointer to the offset value.
++ * Return:      Transferd size.
++ */
++static ssize_t udmabuf_device_file_read(struct file* file, char __user* buff, size_t count, loff_t* ppos)
++{
++    struct udmabuf_device_data* this      = file->private_data;
++    int                         result    = 0;
++    size_t                      xfer_size;
++    size_t                      remain_size;
++    dma_addr_t                  phys_addr;
++    void*                       virt_addr;
++
++    if (mutex_lock_interruptible(&this->sem))
++        return -ERESTARTSYS;
++
++    if (*ppos >= this->size) {
++        result = 0;
++        goto return_unlock;
++    }
++
++    phys_addr = this->phys_addr + *ppos;
++    virt_addr = this->virt_addr + *ppos;
++    xfer_size = (*ppos + count >= this->size) ? this->size - *ppos : count;
++
++    if ((file->f_flags & O_SYNC) | (this->sync_mode & SYNC_ALWAYS))
++        dma_sync_single_for_cpu(this->dma_dev, phys_addr, xfer_size, DMA_FROM_DEVICE);
++
++    if ((remain_size = copy_to_user(buff, virt_addr, xfer_size)) != 0) {
++        result = 0;
++        goto return_unlock;
++    }
++
++    if ((file->f_flags & O_SYNC) | (this->sync_mode & SYNC_ALWAYS))
++        dma_sync_single_for_device(this->dma_dev, phys_addr, xfer_size, DMA_FROM_DEVICE);
++
++    *ppos += xfer_size;
++    result = xfer_size;
++ return_unlock:
++    mutex_unlock(&this->sem);
++    return result;
++}
++
++/**
++ * udmabuf_device_file_write() - udmabuf device file write operation.
++ * @file:       Pointer to the file structure.
++ * @buff:       Pointer to the user buffer.
++ * @count:      The number of bytes to be written.
++ * @ppos:       Pointer to the offset value
++ * Return:      Transferd size.
++ */
++static ssize_t udmabuf_device_file_write(struct file* file, const char __user* buff, size_t count, loff_t* ppos)
++{
++    struct udmabuf_device_data* this      = file->private_data;
++    int                         result    = 0;
++    size_t                      xfer_size;
++    size_t                      remain_size;
++    dma_addr_t                  phys_addr;
++    void*                       virt_addr;
++
++    if (mutex_lock_interruptible(&this->sem))
++        return -ERESTARTSYS;
++
++    if (*ppos >= this->size) {
++        result = 0;
++        goto return_unlock;
++    }
++
++    phys_addr = this->phys_addr + *ppos;
++    virt_addr = this->virt_addr + *ppos;
++    xfer_size = (*ppos + count >= this->size) ? this->size - *ppos : count;
++
++    if ((file->f_flags & O_SYNC) | (this->sync_mode & SYNC_ALWAYS))
++        dma_sync_single_for_cpu(this->dma_dev, phys_addr, xfer_size, DMA_TO_DEVICE);
++
++    if ((remain_size = copy_from_user(virt_addr, buff, xfer_size)) != 0) {
++        result = 0;
++        goto return_unlock;
++    }
++
++    if ((file->f_flags & O_SYNC) | (this->sync_mode & SYNC_ALWAYS))
++        dma_sync_single_for_device(this->dma_dev, phys_addr, xfer_size, DMA_TO_DEVICE);
++
++    *ppos += xfer_size;
++    result = xfer_size;
++ return_unlock:
++    mutex_unlock(&this->sem);
++    return result;
++}
++
++/**
++ * udmabuf_device_file_llseek() - udmabuf device file llseek operation.
++ * @file:       Pointer to the file structure.
++ * @offset:     File offset to seek.
++ * @whence:     Type of seek.
++ * Return:      The new position.
++ */
++static loff_t udmabuf_device_file_llseek(struct file* file, loff_t offset, int whence)
++{
++    struct udmabuf_device_data* this = file->private_data;
++    loff_t                      new_pos;
++
++    switch (whence) {
++        case 0 : /* SEEK_SET */
++            new_pos = offset;
++            break;
++        case 1 : /* SEEK_CUR */
++            new_pos = file->f_pos + offset;
++            break;
++        case 2 : /* SEEK_END */
++            new_pos = this->size  + offset;
++            break;
++        default:
++            return -EINVAL;
++    }
++    if (new_pos < 0         ){return -EINVAL;}
++    if (new_pos > this->size){return -EINVAL;}
++    file->f_pos = new_pos;
++    return new_pos;
++}
++
++/**
++ * udmabuf device file operation table.
++ */
++static const struct file_operations udmabuf_device_file_ops = {
++    .owner   = THIS_MODULE,
++    .open    = udmabuf_device_file_open,
++    .release = udmabuf_device_file_release,
++    .mmap    = udmabuf_device_file_mmap,
++    .read    = udmabuf_device_file_read,
++    .write   = udmabuf_device_file_write,
++    .llseek  = udmabuf_device_file_llseek,
++};
++
++/**
++ * DOC: Udmabuf Device Data Operations
++ *
++ * This section defines the operation of udmabuf device data.
++ *
++ * * udmabuf_device_ida         - Udmabuf Device Minor Number allocator variable.
++ * * udmabuf_device_number      - Udmabuf Device Major Number.
++ * * udmabuf_device_create()    - Create udmabuf device data.
++ * * udmabuf_device_setup()     - Setup the udmabuf device data.
++ * * udmabuf_device_info()      - Print infomation the udmabuf device data.
++ * * udmabuf_device_destroy()   - Destroy the udmabuf device data.
++ */
++static DEFINE_IDA(udmabuf_device_ida);
++static dev_t      udmabuf_device_number = 0;
++
++/**
++ * udmabuf_device_create() -  Create udmabuf device data.
++ * @name:       device name   or NULL.
++ * @parent:     parent device or NULL.
++ * @minor:      minor_number  or -1.
++ * Return:      Pointer to the udmabuf device data or NULL.
++ */
++static struct udmabuf_device_data* udmabuf_device_create(const char* name, struct device* parent, int minor)
++{
++    struct udmabuf_device_data* this     = NULL;
++    unsigned int                done     = 0;
++    const unsigned int          DONE_ALLOC_MINOR   = (1 << 0);
++    const unsigned int          DONE_CHRDEV_ADD    = (1 << 1);
++    const unsigned int          DONE_DEVICE_CREATE = (1 << 3);
++    const unsigned int          DONE_SET_DMA_DEV   = (1 << 4);
++    /*
++     * allocate device minor number
++     */
++    {
++        if ((0 <= minor) && (minor < DEVICE_MAX_NUM)) {
++            if (ida_simple_get(&udmabuf_device_ida, minor, minor+1, GFP_KERNEL) < 0) {
++                printk(KERN_ERR "couldn't allocate minor number(=%d).\n", minor);
++                goto failed;
++            }
++        } else if(minor == -1) {
++            if ((minor = ida_simple_get(&udmabuf_device_ida, 0, DEVICE_MAX_NUM, GFP_KERNEL)) < 0) {
++                printk(KERN_ERR "couldn't allocate new minor number. return=%d.\n", minor);
++                goto failed;
++            }
++        } else {
++                printk(KERN_ERR "invalid minor number(=%d), valid range is 0 to %d\n", minor, DEVICE_MAX_NUM-1);
++                goto failed;
++        }
++        done |= DONE_ALLOC_MINOR;
++    }
++    /*
++     * create (udmabuf_device_data*) this.
++     */
++    {
++        this = kzalloc(sizeof(*this), GFP_KERNEL);
++        if (IS_ERR_OR_NULL(this)) {
++            int retval = PTR_ERR(this);
++            this = NULL;
++            printk(KERN_ERR "kzalloc() failed. return=%d\n", retval);
++            goto failed;
++        }
++    }
++    /*
++     * set device_number
++     */
++    {
++        this->device_number = MKDEV(MAJOR(udmabuf_device_number), minor);
++    }
++    /*
++     * register /sys/class/udmabuf/<name>
++     */
++    {
++        if (name == NULL) {
++            this->sys_dev = device_create(udmabuf_sys_class,
++                                          parent,
++                                          this->device_number,
++                                          (void *)this,
++                                          DEVICE_NAME_FORMAT, MINOR(this->device_number));
++        } else {
++            this->sys_dev = device_create(udmabuf_sys_class,
++                                          parent,
++                                          this->device_number,
++                                          (void *)this,
++                                         "%s", name);
++        }
++        if (IS_ERR_OR_NULL(this->sys_dev)) {
++            int retval = PTR_ERR(this->sys_dev);
++            this->sys_dev = NULL;
++            printk(KERN_ERR "device_create() failed. return=%d\n", retval);
++            goto failed;
++        }
++        done |= DONE_DEVICE_CREATE;
++    }
++    /*
++     * add chrdev.
++     */
++    {
++        int retval;
++        cdev_init(&this->cdev, &udmabuf_device_file_ops);
++        this->cdev.owner = THIS_MODULE;
++        if ((retval = cdev_add(&this->cdev, this->device_number, 1)) != 0) {
++            printk(KERN_ERR "cdev_add() failed. return=%d\n", retval);
++            goto failed;
++        }
++        done |= DONE_CHRDEV_ADD;
++    }
++    /*
++     * set dma_dev
++     */
++    {
++        if (parent != NULL)
++            this->dma_dev = get_device(parent);
++        else
++            this->dma_dev = get_device(this->sys_dev);
++        done |= DONE_SET_DMA_DEV;
++    }
++    /*
++     * initialize other variables.
++     */
++    {
++        this->size            = 0;
++        this->alloc_size      = 0;
++        this->sync_mode       = SYNC_MODE_NONCACHED;
++        this->sync_offset     = 0;
++        this->sync_size       = 0;
++        this->sync_direction  = 0;
++        this->sync_owner      = 0;
++        this->sync_for_cpu    = 0;
++        this->sync_for_device = 0;
++    }
++#if (USE_OF_RESERVED_MEM == 1)
++    {
++        this->of_reserved_mem = 0;
++    }
++#endif
++#if ((UDMABUF_DEBUG == 1) && (USE_VMA_FAULT == 1))
++    {
++        this->debug_vma       = 0;
++    }
++#endif
++    mutex_init(&this->sem);
++
++    return this;
++
++ failed:
++    if (done & DONE_SET_DMA_DEV  ) { put_device(this->dma_dev);}
++    if (done & DONE_CHRDEV_ADD   ) { cdev_del(&this->cdev); }
++    if (done & DONE_DEVICE_CREATE) { device_destroy(udmabuf_sys_class, this->device_number);}
++    if (done & DONE_ALLOC_MINOR  ) { ida_simple_remove(&udmabuf_device_ida, minor);}
++    if (this != NULL)              { kfree(this); }
++    return NULL;
++}
++
++/**
++ * udmabuf_device_setup() - Setup the udmabuf device data.
++ * @this:       Pointer to the udmabuf device data.
++ * Return:      Success(=0) or error status(<0).
++ */
++static int udmabuf_device_setup(struct udmabuf_device_data* this)
++{
++    if (!this)
++        return -ENODEV;
++    /*
++     * set this->dma_dev->dma_mask
++     */
++    if (this->dma_dev->dma_mask == NULL) {
++        this->dma_dev->dma_mask = &this->dma_dev->coherent_dma_mask;
++    }
++    /*
++     * set this->dma_dev->dma_mask
++     */
++    if (*this->dma_dev->dma_mask == 0) {
++        if (dma_set_mask(this->dma_dev, DMA_BIT_MASK(dma_mask_bit)) == 0) {
++           dma_set_coherent_mask(this->dma_dev, DMA_BIT_MASK(dma_mask_bit));
++        } else {
++            printk(KERN_WARNING "dma_set_mask(DMA_BIT_MASK(%d)) failed\n", dma_mask_bit);
++            dma_set_mask(this->dma_dev, DMA_BIT_MASK(32));
++            dma_set_coherent_mask(this->dma_dev, DMA_BIT_MASK(32));
++       }
++    }
++    /*
++     * setup buffer size and allocation size
++     */
++    this->alloc_size = ((this->size + ((1 << PAGE_SHIFT) - 1)) >> PAGE_SHIFT) << PAGE_SHIFT;
++    /*
++     * dma buffer allocation 
++     */
++    this->virt_addr  = dma_alloc_coherent(this->dma_dev, this->alloc_size, &this->phys_addr, GFP_KERNEL);
++    if (IS_ERR_OR_NULL(this->virt_addr)) {
++        int retval = PTR_ERR(this->virt_addr);
++        printk(KERN_ERR "dma_alloc_coherent() failed. return(%d)\n", retval);
++        this->virt_addr = NULL;
++        return (retval == 0) ? -ENOMEM : retval;
++    }
++    return 0;
++}
++
++/**
++ * udmabuf_device_info() - Print infomation the udmabuf device data structure.
++ * @this:       Pointer to the udmabuf device data structure.
++ */
++static void udmabuf_device_info(struct udmabuf_device_data* this)
++{
++    dev_info(this->sys_dev, "driver version = %s\n"  , DRIVER_VERSION);
++    dev_info(this->sys_dev, "major number   = %d\n"  , MAJOR(this->device_number));
++    dev_info(this->sys_dev, "minor number   = %d\n"  , MINOR(this->device_number));
++    dev_info(this->sys_dev, "phys address   = %pad\n", &this->phys_addr);
++    dev_info(this->sys_dev, "buffer size    = %zu\n" , this->alloc_size);
++    dev_info(this->sys_dev, "dma device     = %s\n"  , dev_name(this->dma_dev));
++#if (USE_DMA_COHERENT == 1)
++    dev_info(this->sys_dev, "dma coherent   = %d\n"  , is_device_dma_coherent(this->dma_dev));
++#endif
++}
++
++/**
++ * udmabuf_device_destroy() -  Destroy the udmabuf device data.
++ * @this:       Pointer to the udmabuf device data.
++ * Return:      Success(=0) or error status(<0).
++ *
++ * Unregister the device after releasing the resources.
++ */
++static int udmabuf_device_destroy(struct udmabuf_device_data* this)
++{
++    if (!this)
++        return -ENODEV;
++
++    if (this->virt_addr != NULL) {
++        dma_free_coherent(this->dma_dev, this->alloc_size, this->virt_addr, this->phys_addr);
++        this->virt_addr = NULL;
++    }
++    put_device(this->dma_dev);
++    cdev_del(&this->cdev);
++    device_destroy(udmabuf_sys_class, this->device_number);
++    ida_simple_remove(&udmabuf_device_ida, MINOR(this->device_number));
++    kfree(this);
++    return 0;
++}
++
++/**
++ * DOC: Udmabuf Static Device
++ *
++ * This section defines the udmabuf device to be created with arguments when loaded
++ * into ther kernel with insmod.
++ *
++ * * STATIC_DEVICE_NUM                  - udmabuf static device list size.
++ * * struct udmabuf_static_device       - udmabuf static device structure.
++ * * udmabuf_static_device_list         - list of udmabuf static device structure.
++ * * udmabuf_static_device_create()     - Create udmabuf static device.
++ * * udmabuf_static_device_remove()     - Remove the udmabuf static device.
++ * * udmabuf_static_device_create_all() - Create udmabuf static device list.
++ * * udmabuf_static_device_remove_all() - Remove udmabuf static device list.
++ */
++
++#define STATIC_DEVICE_NUM   8
++
++/**
++ * udmabuf_static_device_list   - list of udmabuf static device structure.
++ */
++static struct device* udmabuf_static_device_list[STATIC_DEVICE_NUM] = {};
++static struct mutex   udmabuf_static_device_sem;
++
++/**
++ * udmabuf_device_read_size_property()         - Read udmabuf device size property.
++ * udmabuf_device_read_minor_number_property() - Read udmabuf device minor-number property.
++ */
++#if (LINUX_VERSION_CODE < 0x040500)
++static u32            udmabuf_static_buffer_size[STATIC_DEVICE_NUM] = {};
++
++static int  udmabuf_device_read_device_name_property(struct device *dev, const char** name)
++{
++    return -1;
++}
++
++static int  udmabuf_device_read_size_property(struct device *dev, u32* value)
++{
++    int id;
++    int status = -1;
++
++    mutex_lock(&udmabuf_static_device_sem);
++    for (id = 0; id < STATIC_DEVICE_NUM; id++) {
++        if ((udmabuf_static_device_list[id] != NULL) &&
++            (udmabuf_static_device_list[id] == dev )) {
++            *value = udmabuf_static_buffer_size[id];
++            status = 0;
++            break;
++        }
++    }
++    mutex_unlock(&udmabuf_static_device_sem);
++    return status;
++}
++
++static int  udmabuf_device_read_minor_number_property(struct device *dev, u32* value)
++{
++    int id;
++    int status = -1;
++
++    mutex_lock(&udmabuf_static_device_sem);
++    for (id = 0; id < STATIC_DEVICE_NUM; id++) {
++        if ((udmabuf_static_device_list[id] != NULL) &&
++            (udmabuf_static_device_list[id] == dev )) {
++            *value = id;
++            status = 0;
++            break;
++        }
++    }
++    mutex_unlock(&udmabuf_static_device_sem);
++    return status;
++}
++
++#else
++#include <linux/property.h>
++
++static int  udmabuf_device_read_device_name_property(struct device *dev, const char** name)
++{
++    return device_property_read_string(dev , "device-name", name);
++}
++
++static int  udmabuf_device_read_size_property(struct device *dev, u32* value)
++{
++    return device_property_read_u32(dev, "size", value);
++}
++
++static int  udmabuf_device_read_minor_number_property(struct device *dev, u32* value)
++{
++    return device_property_read_u32(dev, "minor-number", value);
++}
++#endif
++
++/**
++ * udmabuf_static_device_create() - Create udmabuf static device.
++ * @id:         device id.
++ * @size:       buffer size.
++ */
++static void udmabuf_static_device_create(int id, unsigned int size)
++{
++    struct platform_device* pdev;
++    int                     retval = 0;
++
++    if ((id < 0) || (id >= STATIC_DEVICE_NUM))
++        return;
++
++    if (size == 0) {
++        mutex_lock(&udmabuf_static_device_sem);
++        udmabuf_static_device_list[id] = NULL;
++        mutex_unlock(&udmabuf_static_device_sem);
++        return;
++    }
++
++    pdev = platform_device_alloc(DRIVER_NAME, id);
++    if (IS_ERR_OR_NULL(pdev)) {
++        retval = PTR_ERR(pdev);
++        pdev   = NULL;
++        printk(KERN_ERR "platform_device_alloc(%s,%d) failed. return=%d\n", DRIVER_NAME, id, retval);
++        goto failed;
++    }
++
++#if   (LINUX_VERSION_CODE >= 0x040500)
++    {
++        const struct property_entry   props[] = {
++            PROPERTY_ENTRY_U32("size"        , size),
++            PROPERTY_ENTRY_U32("minor-number", id)  ,
++            {},
++        };
++   
++#if   (LINUX_VERSION_CODE >= 0x040700)
++        {
++            retval = device_add_properties(&pdev->dev, props);
++            if (retval != 0) {
++                dev_err(&pdev->dev, "device_add_properties failed. return=%d\n", retval);
++                goto failed;
++            }
++        }
++#else
++        {
++            const struct property_set pset = {
++                .properties = props,
++            };
++   
++            retval = device_add_property_set(&pdev->dev, &pset);
++            if (retval != 0) {
++                dev_err(&pdev->dev, "device_add_propertiy_set failed. return=%d\n", retval);
++                goto failed;
++            }
++        }
++#endif
++        mutex_lock(&udmabuf_static_device_sem);
++        udmabuf_static_device_list[id] = &pdev->dev;
++        mutex_unlock(&udmabuf_static_device_sem);
++    }
++#else
++    {
++        mutex_lock(&udmabuf_static_device_sem);
++        udmabuf_static_device_list[id] = &pdev->dev;
++        udmabuf_static_buffer_size[id] = size;
++        mutex_unlock(&udmabuf_static_device_sem);
++    }
++#endif
++    
++    retval = platform_device_add(pdev);
++    if (retval != 0) {
++        dev_err(&pdev->dev, "platform_device_add failed. return=%d\n", retval);
++        goto failed;
++    }
++
++    return;
++
++ failed:
++    if (pdev != NULL) {
++        platform_device_put(pdev);
++    }
++    mutex_lock(&udmabuf_static_device_sem);
++    udmabuf_static_device_list[id] = NULL;
++    mutex_unlock(&udmabuf_static_device_sem);
++    return;
++}
++
++/**
++ * udmabuf_static_device_remove() - Remove the udmabuf static device.
++ * @id:         device id.
++ */
++static void udmabuf_static_device_remove(int id)
++{
++    struct device* dev;
++    mutex_lock(&udmabuf_static_device_sem);
++    dev = udmabuf_static_device_list[id];
++    mutex_unlock(&udmabuf_static_device_sem);
++    if (dev != NULL) {
++        struct platform_device* pdev = to_platform_device(dev);
++        platform_device_del(pdev);
++        platform_device_put(pdev);
++    }
++    mutex_lock(&udmabuf_static_device_sem);
++    udmabuf_static_device_list[id] = NULL;
++    mutex_unlock(&udmabuf_static_device_sem);
++}
++
++/**
++ * udmabuf static device description.
++ */
++#define DEFINE_UDMABUF_STATIC_DEVICE_PARAM(__num)                        \
++    static int       udmabuf ## __num = 0;                               \
++    module_param(    udmabuf ## __num, int, S_IRUGO);                    \
++    MODULE_PARM_DESC(udmabuf ## __num, DRIVER_NAME #__num " buffer size");
++
++#define CALL_UDMABUF_STATIC_DEVICE_CREATE(__num)                         \
++    if (udmabuf ## __num != 0) {                                         \
++        ida_simple_remove(&udmabuf_device_ida, __num);                   \
++        udmabuf_static_device_create(__num, udmabuf ## __num);           \
++    }
++
++#define CALL_UDMABUF_STATIC_DEVICE_RESERVE_MINOR_NUMBER(__num)           \
++    if (udmabuf ## __num != 0) {                                         \
++        ida_simple_get(&udmabuf_device_ida, __num, __num+1, GFP_KERNEL); \
++    }
++
++DEFINE_UDMABUF_STATIC_DEVICE_PARAM(0);
++DEFINE_UDMABUF_STATIC_DEVICE_PARAM(1);
++DEFINE_UDMABUF_STATIC_DEVICE_PARAM(2);
++DEFINE_UDMABUF_STATIC_DEVICE_PARAM(3);
++DEFINE_UDMABUF_STATIC_DEVICE_PARAM(4);
++DEFINE_UDMABUF_STATIC_DEVICE_PARAM(5);
++DEFINE_UDMABUF_STATIC_DEVICE_PARAM(6);
++DEFINE_UDMABUF_STATIC_DEVICE_PARAM(7);
++
++/**
++ * udmabuf_static_device_reserve_minor_number_all() - Reserve udmabuf static device's minor-number.
++ */
++static void udmabuf_static_device_reserve_minor_number_all(void)
++{
++    CALL_UDMABUF_STATIC_DEVICE_RESERVE_MINOR_NUMBER(0);
++    CALL_UDMABUF_STATIC_DEVICE_RESERVE_MINOR_NUMBER(1);
++    CALL_UDMABUF_STATIC_DEVICE_RESERVE_MINOR_NUMBER(2);
++    CALL_UDMABUF_STATIC_DEVICE_RESERVE_MINOR_NUMBER(3);
++    CALL_UDMABUF_STATIC_DEVICE_RESERVE_MINOR_NUMBER(4);
++    CALL_UDMABUF_STATIC_DEVICE_RESERVE_MINOR_NUMBER(5);
++    CALL_UDMABUF_STATIC_DEVICE_RESERVE_MINOR_NUMBER(6);
++    CALL_UDMABUF_STATIC_DEVICE_RESERVE_MINOR_NUMBER(7);
++}
++
++/**
++ * udmabuf_static_device_create_all() - Create udmabuf static device list.
++ */
++static void udmabuf_static_device_create_all(void)
++{
++    CALL_UDMABUF_STATIC_DEVICE_CREATE(0);
++    CALL_UDMABUF_STATIC_DEVICE_CREATE(1);
++    CALL_UDMABUF_STATIC_DEVICE_CREATE(2);
++    CALL_UDMABUF_STATIC_DEVICE_CREATE(3);
++    CALL_UDMABUF_STATIC_DEVICE_CREATE(4);
++    CALL_UDMABUF_STATIC_DEVICE_CREATE(5);
++    CALL_UDMABUF_STATIC_DEVICE_CREATE(6);
++    CALL_UDMABUF_STATIC_DEVICE_CREATE(7);
++}
++
++/**
++ * udmabuf_static_device_remove_all() - Remove udmabuf static device list.
++ */
++static void udmabuf_static_device_remove_all(void)
++{
++    int id;
++    for (id = 0; id < STATIC_DEVICE_NUM; id++) {
++        udmabuf_static_device_remove(id);
++    }
++}
++
++/**
++ * DOC: Udmabuf Device Driver
++ *
++ * This section defines the udmabuf device driver.
++ *
++ * * udmabuf_device_probe()   - Probe  call for the device driver.
++ * * udmabuf_device_remove()  - Remove call for the device driver.
++ */
++
++/**
++ * udmabuf_device_remove()   - Remove udmabuf device driver.
++ * @dev:        handle to the device structure.
++ * @devdata     Pointer to the udmabuf device data structure.
++ * Return:      Success(=0) or error status(<0).
++ */
++static int udmabuf_device_remove(struct device *dev, struct udmabuf_device_data *devdata)
++{
++    int retval = 0;
++
++    if (devdata != NULL) {
++#if (USE_OF_RESERVED_MEM == 1)
++        bool of_reserved_mem = devdata->of_reserved_mem;
++#endif
++        retval = udmabuf_device_destroy(devdata);
++        dev_set_drvdata(dev, NULL);
++#if (USE_OF_RESERVED_MEM == 1)
++        if (of_reserved_mem) {
++            of_reserved_mem_device_release(dev);
++        }
++#endif
++    } else {
++        retval = -ENODEV;
++    }
++    return retval;
++}
++
++/**
++ * udmabuf_device_probe() -  Probe call for the device.
++ * @dev:        handle to the device structure.
++ * Return:      Success(=0) or error status(<0).
++ *
++ * It does all the memory allocation and registration for the device.
++ */
++static int udmabuf_device_probe(struct device *dev)
++{
++    int                         retval       = 0;
++    int                         prop_status  = 0;
++    unsigned int                u32_value    = 0;
++    unsigned int                size         = 0;
++    int                         minor_number = -1;
++    struct udmabuf_device_data* device_data  = NULL;
++    const char*                 device_name  = NULL;
++
++    /*
++     * size property
++     */
++    if        ((prop_status = udmabuf_device_read_size_property(dev    , &u32_value)) == 0) {
++        size = u32_value;
++    } else if ((prop_status = of_property_read_u32(dev->of_node, "size", &u32_value)) == 0) {
++        size = u32_value;
++    } else {
++        dev_err(dev, "invalid property size. status=%d\n", prop_status);
++        retval = -ENODEV;
++        goto failed;
++    }
++    /*
++     * minor-number property
++     */
++    if        (udmabuf_device_read_minor_number_property(dev    , &u32_value) == 0) {
++        minor_number = u32_value;
++    } else if (of_property_read_u32(dev->of_node, "minor-number", &u32_value) == 0) {
++        minor_number = u32_value;
++    } else {
++        minor_number = -1;
++    }
++    /*
++     * device-name property
++     */
++    if (udmabuf_device_read_device_name_property(dev, &device_name) != 0) {
++        device_name = of_get_property(dev->of_node, "device-name", NULL);
++        if (IS_ERR_OR_NULL(device_name)) {
++            if (minor_number < 0)
++                device_name = dev_name(dev);
++            else
++                device_name = NULL;
++        }
++    }
++    /*
++     * udmabuf_device_create()
++     */
++    device_data = udmabuf_device_create(device_name, dev, minor_number);
++    if (IS_ERR_OR_NULL(device_data)) {
++        retval = PTR_ERR(device_data);
++        dev_err(dev, "driver create failed. return=%d.\n", retval);
++        device_data = NULL;
++        retval = (retval == 0) ? -EINVAL : retval;
++        goto failed;
++    }
++    dev_set_drvdata(dev, device_data);
++    /*
++     * set size
++     */
++    device_data->size = size;
++    /*
++     * of_reserved_mem_device_init()
++     */
++#if (USE_OF_RESERVED_MEM == 1)
++    if (dev->of_node != NULL) {
++        retval = of_reserved_mem_device_init(dev);
++        if (retval == 0) {
++            device_data->of_reserved_mem = 1;
++        } else if (retval != -ENODEV) {
++            dev_err(dev, "of_reserved_mem_device_init failed. return=%d\n", retval);
++            goto failed;
++        }
++    }
++#endif
++#if (USE_OF_DMA_CONFIG == 1)
++    /*
++     * of_dma_configure()
++     * - set pdev->dev->dma_mask
++     * - set pdev->dev->coherent_dma_mask
++     * - call of_dma_is_coherent()
++     * - call arch_setup_dma_ops()
++     */
++#if (USE_OF_RESERVED_MEM == 1)
++    /* If "memory-region" property is spsecified, of_dma_configure() will not be executed.
++     * Because in that case, it is already executed in of_reserved_mem_device_init().
++     */
++    if (device_data->of_reserved_mem == 0)
++#endif
++    {
++#if (LINUX_VERSION_CODE >= 0x040C00)
++#if (LINUX_VERSION_CODE >= 0x041200)
++        retval = of_dma_configure(dev, dev->of_node, true);
++#else
++        retval = of_dma_configure(dev, dev->of_node);
++#endif
++        if (retval != 0) {
++            dev_err(dev, "of_dma_configure failed. return=%d\n", retval);
++            goto failed;
++        }
++#else
++        of_dma_configure(dev, dev->of_node);
++#endif
++    }
++#endif
++    /*
++     * sync-mode property
++     */
++    if (of_property_read_u32(dev->of_node, "sync-mode", &u32_value) == 0) {
++        if ((u32_value < SYNC_MODE_MIN) || (u32_value > SYNC_MODE_MAX)) {
++            dev_err(dev, "invalid sync-mode property value=%d\n", u32_value);
++            goto failed;
++        }
++        device_data->sync_mode &= ~SYNC_MODE_MASK;
++        device_data->sync_mode |= (int)u32_value;
++    }
++    /*
++     * sync-always property
++     */
++    if (of_property_read_bool(dev->of_node, "sync-always")) {
++        device_data->sync_mode |= SYNC_ALWAYS;
++    }
++    /*
++     * sync-direction property
++     */
++    if (of_property_read_u32(dev->of_node, "sync-direction", &u32_value) == 0) {
++        if (u32_value > 2) {
++            dev_err(dev, "invalid sync-direction property value=%d\n", u32_value);
++            goto failed;
++        }
++        device_data->sync_direction = (int)u32_value;
++    }
++    /*
++     * sync-offset property
++     */
++    if (of_property_read_u32(dev->of_node, "sync-offset", &u32_value) == 0) {
++        if (u32_value >= device_data->size) {
++            dev_err(dev, "invalid sync-offset property value=%d\n", u32_value);
++            goto failed;
++        }
++        device_data->sync_offset = (int)u32_value;
++    }
++    /*
++     * sync-size property
++     */
++    if (of_property_read_u32(dev->of_node, "sync-size", &u32_value) == 0) {
++        if (device_data->sync_offset + u32_value > device_data->size) {
++            dev_err(dev, "invalid sync-size property value=%d\n", u32_value);
++            goto failed;
++        }
++        device_data->sync_size = (size_t)u32_value;
++    } else {
++        device_data->sync_size = device_data->size;
++    }
++    /*
++     * udmabuf_device_setup()
++     */
++    retval = udmabuf_device_setup(device_data);
++    if (retval) {
++        dev_err(dev, "driver setup failed. return=%d\n", retval);
++        goto failed;
++    }
++
++    if (info_enable) {
++        udmabuf_device_info(device_data);
++    }
++
++    return 0;
++
++failed:
++    udmabuf_device_remove(dev, device_data);
++
++    return retval;
++}
++
++/**
++ * DOC: Udmabuf Platform Driver
++ *
++ * This section defines the udmabuf platform driver.
++ *
++ * * udmabuf_platform_driver_probe()   - Probe call for the device.
++ * * udmabuf_platform_driver_remove()  - Remove call for the device.
++ * * udmabuf_of_match                  - Open Firmware Device Identifier Matching Table.
++ * * udmabuf_platform_driver           - Platform Driver Structure.
++ */
++
++/**
++ * udmabuf_platform_driver_probe() -  Probe call for the device.
++ * @pdev:       Handle to the platform device structure.
++ * Return:      Success(=0) or error status(<0).
++ *
++ * It does all the memory allocation and registration for the device.
++ */
++static int udmabuf_platform_driver_probe(struct platform_device *pdev)
++{
++    int retval = 0;
++
++    dev_dbg(&pdev->dev, "driver probe start.\n");
++
++    retval = udmabuf_device_probe(&pdev->dev);
++    
++    if (info_enable) {
++        dev_info(&pdev->dev, "driver installed.\n");
++    }
++    return retval;
++}
++/**
++ * udmabuf_platform_driver_remove() -  Remove call for the device.
++ * @pdev:       Handle to the platform device structure.
++ * Return:      Success(=0) or error status(<0).
++ *
++ * Unregister the device after releasing the resources.
++ */
++static int udmabuf_platform_driver_remove(struct platform_device *pdev)
++{
++    struct udmabuf_device_data* this   = dev_get_drvdata(&pdev->dev);
++    int                         retval = 0;
++
++    dev_dbg(&pdev->dev, "driver remove start.\n");
++
++    retval = udmabuf_device_remove(&pdev->dev, this);
++
++    if (info_enable) {
++        dev_info(&pdev->dev, "driver removed.\n");
++    }
++    return retval;
++}
++
++/**
++ * Open Firmware Device Identifier Matching Table
++ */
++static struct of_device_id udmabuf_of_match[] = {
++    { .compatible = "ikwzm,udmabuf-0.10.a", },
++    { /* end of table */}
++};
++MODULE_DEVICE_TABLE(of, udmabuf_of_match);
++
++/**
++ * Platform Driver Structure
++ */
++static struct platform_driver udmabuf_platform_driver = {
++    .probe  = udmabuf_platform_driver_probe,
++    .remove = udmabuf_platform_driver_remove,
++    .driver = {
++        .owner = THIS_MODULE,
++        .name  = DRIVER_NAME,
++        .of_match_table = udmabuf_of_match,
++    },
++};
++
++/**
++ * DOC: Udmabuf Module Operations
++ *
++ * * udmabuf_module_cleanup()
++ * * udmabuf_module_init()
++ * * udmabuf_module_exit()
++ */
++
++static bool udmabuf_platform_driver_registerd = 0;
++
++/**
++ * udmabuf_module_cleanup()
++ */
++static void udmabuf_module_cleanup(void)
++{
++    udmabuf_static_device_remove_all();
++    if (udmabuf_platform_driver_registerd){platform_driver_unregister(&udmabuf_platform_driver);}
++    if (udmabuf_sys_class     != NULL    ){class_destroy(udmabuf_sys_class);}
++    if (udmabuf_device_number != 0       ){unregister_chrdev_region(udmabuf_device_number, 0);}
++    ida_destroy(&udmabuf_device_ida);
++}
++
++/**
++ * udmabuf_module_init()
++ */
++static int __init udmabuf_module_init(void)
++{
++    int retval = 0;
++
++    ida_init(&udmabuf_device_ida);
++    mutex_init(&udmabuf_static_device_sem);
++
++    retval = alloc_chrdev_region(&udmabuf_device_number, 0, 0, DRIVER_NAME);
++    if (retval != 0) {
++        printk(KERN_ERR "%s: couldn't allocate device major number. return=%d\n", DRIVER_NAME, retval);
++        udmabuf_device_number = 0;
++        goto failed;
++    }
++
++    udmabuf_sys_class = class_create(THIS_MODULE, DRIVER_NAME);
++    if (IS_ERR_OR_NULL(udmabuf_sys_class)) {
++        retval = PTR_ERR(udmabuf_sys_class);
++        udmabuf_sys_class = NULL;
++        printk(KERN_ERR "%s: couldn't create sys class. return=%d\n", DRIVER_NAME, retval);
++        retval = (retval == 0) ? -ENOMEM : retval;
++        goto failed;
++    }
++
++    udmabuf_sys_class_set_attributes();
++
++    udmabuf_static_device_reserve_minor_number_all();
++
++    retval = platform_driver_register(&udmabuf_platform_driver);
++    if (retval) {
++        printk(KERN_ERR "%s: couldn't register platform driver. return=%d\n", DRIVER_NAME, retval);
++        udmabuf_platform_driver_registerd = 0;
++        goto failed;
++    } else {
++        udmabuf_platform_driver_registerd = 1;
++    }
++
++    udmabuf_static_device_create_all();
++
++    return 0;
++
++ failed:
++    udmabuf_module_cleanup();
++    return retval;
++}
++
++/**
++ * udmabuf_module_exit()
++ */
++static void __exit udmabuf_module_exit(void)
++{
++    udmabuf_module_cleanup();
++}
++
++module_init(udmabuf_module_init);
++module_exit(udmabuf_module_exit);
+diff --git b/drivers/udmabuf/udmabuf_test.c b/drivers/udmabuf/udmabuf_test.c
+new file mode 100644
+index 0000000..eb59a88
+--- /dev/null
++++ b/drivers/udmabuf/udmabuf_test.c
+@@ -0,0 +1,189 @@
++#include        <stdio.h>
++#include        <fcntl.h>
++#include        <string.h>
++#include        <time.h>
++#include        <sys/types.h>
++#include        <sys/mman.h>
++#include        <sys/utsname.h>
++
++void print_diff_time(struct timeval start_time, struct timeval end_time)
++{
++    struct timeval diff_time;
++    if (end_time.tv_usec < start_time.tv_usec) {
++        diff_time.tv_sec  = end_time.tv_sec  - start_time.tv_sec  - 1;
++        diff_time.tv_usec = end_time.tv_usec - start_time.tv_usec + 1000*1000;
++    } else {
++        diff_time.tv_sec  = end_time.tv_sec  - start_time.tv_sec ;
++        diff_time.tv_usec = end_time.tv_usec - start_time.tv_usec;
++    }
++    printf("time = %ld.%06ld sec\n", diff_time.tv_sec, diff_time.tv_usec);
++}
++
++int check_buf(unsigned char* buf, unsigned int size)
++{
++    int m = 256;
++    int n = 10;
++    int i, k;
++    int error_count = 0;
++    while(--n > 0) {
++      for(i = 0; i < size; i = i + m) {
++        m = (i+256 < size) ? 256 : (size-i);
++        for(k = 0; k < m; k++) {
++          buf[i+k] = (k & 0xFF);
++        }
++        for(k = 0; k < m; k++) {
++          if (buf[i+k] != (k & 0xFF)) {
++            error_count++;
++          }
++        }
++      }
++    }
++    return error_count;
++}
++
++int clear_buf(unsigned char* buf, unsigned int size)
++{
++    int n = 100;
++    int error_count = 0;
++    while(--n > 0) {
++      memset((void*)buf, 0xFF, size);
++    }
++    return error_count;
++}
++
++void check_buf_test(unsigned int size, unsigned int sync_mode, int o_sync)
++{
++    int            fd;
++    unsigned char  attr[1024];
++    struct timeval start_time, end_time;
++    int            error_count;
++    unsigned char* buf;
++
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_mode", O_WRONLY)) != -1) {
++      sprintf(attr, "%d", sync_mode);
++      write(fd, attr, strlen(attr));
++      close(fd);
++    }
++
++    printf("sync_mode=%d, O_SYNC=%d, ", sync_mode, (o_sync)?1:0);
++
++    if ((fd  = open("/dev/udmabuf0", O_RDWR | o_sync)) != -1) {
++      buf = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
++      gettimeofday(&start_time, NULL);
++      error_count = check_buf(buf, size);
++      gettimeofday(&end_time  , NULL);
++      print_diff_time(start_time, end_time);
++      close(fd);
++    }
++}
++
++void clear_buf_test(unsigned int size, unsigned int sync_mode, int o_sync)
++{
++    int            fd;
++    unsigned char  attr[1024];
++    struct timeval start_time, end_time;
++    int            error_count;
++    unsigned char* buf;
++
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_mode", O_WRONLY)) != -1) {
++      sprintf(attr, "%d", sync_mode);
++      write(fd, attr, strlen(attr));
++      close(fd);
++    }
++
++    printf("sync_mode=%d, O_SYNC=%d, ", sync_mode, (o_sync)?1:0);
++
++    if ((fd  = open("/dev/udmabuf0", O_RDWR | o_sync)) != -1) {
++      buf = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
++      gettimeofday(&start_time, NULL);
++      error_count = clear_buf(buf, size);
++      gettimeofday(&end_time  , NULL);
++      print_diff_time(start_time, end_time);
++      close(fd);
++    }
++}
++
++void main()
++{
++    int            fd;
++    unsigned char  attr[1024];
++    unsigned char* buf;
++    unsigned int   buf_size;
++    unsigned long  phys_addr;
++    unsigned long  debug_vma = 0;
++    unsigned long  sync_mode = 2;
++    int            error_count;
++    struct timeval start_time, end_time;
++
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/phys_addr", O_RDONLY)) != -1) {
++      read(fd, attr, 1024);
++      sscanf(attr, "%x", &phys_addr);
++      close(fd);
++    }
++
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/size"     , O_RDONLY)) != -1) {
++      read(fd, attr, 1024);
++      sscanf(attr, "%d", &buf_size);
++      close(fd);
++    }
++
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/sync_mode", O_WRONLY)) != -1) {
++      sprintf(attr, "%d", sync_mode);
++      write(fd, attr, strlen(attr));
++      close(fd);
++    }
++
++    if ((fd  = open("/sys/class/udmabuf/udmabuf0/debug_vma", O_WRONLY)) != -1) {
++      sprintf(attr, "%d", debug_vma);
++      write(fd, attr, strlen(attr));
++      close(fd);
++    }
++
++    printf("phys_addr=0x%x\n", phys_addr);
++    printf("size=%d\n", buf_size);
++
++    if ((fd  = open("/dev/udmabuf0", O_RDWR)) != -1) {
++      long last_pos = lseek(fd, 0, 2);
++      if (last_pos == -1) {
++        printf("lseek error\n");
++        exit(-1);
++      }
++      close(fd);
++    }
++
++    printf("check_buf()\n", buf_size);
++    check_buf_test(buf_size, 0, 0);
++    check_buf_test(buf_size, 0, O_SYNC);
++    check_buf_test(buf_size, 1, 0);
++    check_buf_test(buf_size, 1, O_SYNC);
++    check_buf_test(buf_size, 2, 0);
++    check_buf_test(buf_size, 2, O_SYNC);
++    check_buf_test(buf_size, 3, 0);
++    check_buf_test(buf_size, 3, O_SYNC);
++    check_buf_test(buf_size, 4, 0);
++    check_buf_test(buf_size, 4, O_SYNC);
++    check_buf_test(buf_size, 5, 0);
++    check_buf_test(buf_size, 5, O_SYNC);
++    check_buf_test(buf_size, 6, 0);
++    check_buf_test(buf_size, 6, O_SYNC);
++    check_buf_test(buf_size, 7, 0);
++    check_buf_test(buf_size, 7, O_SYNC);
++
++    printf("clear_buf()\n", buf_size);
++    clear_buf_test(buf_size, 0, 0);
++    clear_buf_test(buf_size, 0, O_SYNC);
++    clear_buf_test(buf_size, 1, 0);
++    clear_buf_test(buf_size, 1, O_SYNC);
++    clear_buf_test(buf_size, 2, 0);
++    clear_buf_test(buf_size, 2, O_SYNC);
++    clear_buf_test(buf_size, 3, 0);
++    clear_buf_test(buf_size, 3, O_SYNC);
++    clear_buf_test(buf_size, 4, 0);
++    clear_buf_test(buf_size, 4, O_SYNC);
++    clear_buf_test(buf_size, 5, 0);
++    clear_buf_test(buf_size, 5, O_SYNC);
++    clear_buf_test(buf_size, 6, 0);
++    clear_buf_test(buf_size, 6, O_SYNC);
++    clear_buf_test(buf_size, 7, 0);
++    clear_buf_test(buf_size, 7, O_SYNC);
++}

@@ -1,0 +1,27 @@
+diff --git a/drivers/irqchip/irq-gic.c b/drivers/irqchip/irq-gic.c
+index 917ca1f..a21608b 100755
+--- a/drivers/irqchip/irq-gic.c
++++ b/drivers/irqchip/irq-gic.c
+@@ -328,7 +328,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
+ {
+ 	void __iomem *reg = gic_dist_base(d) + GIC_DIST_TARGET + (gic_irq(d) & ~3);
+ 	unsigned int cpu, shift = (gic_irq(d) % 4) * 8;
+-	u32 val, mask, bit;
++	u32 val, bit;
+ 	unsigned long flags;
+ 
+ 	if (!force)
+@@ -340,10 +340,9 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
+ 		return -EINVAL;
+ 
+ 	gic_lock_irqsave(flags);
+-	mask = 0xff << shift;
+-	bit = gic_cpu_map[cpu] << shift;
+-	val = readl_relaxed(reg) & ~mask;
+-	writel_relaxed(val | bit, reg);
++    bit = gic_cpu_map[cpu] << shift;
++	val = readl_relaxed(reg) | bit;
++	writel_relaxed(val, reg);
+ 	gic_unlock_irqrestore(flags);
+ 
+ 	irq_data_update_effective_affinity(d, cpumask_of(cpu));

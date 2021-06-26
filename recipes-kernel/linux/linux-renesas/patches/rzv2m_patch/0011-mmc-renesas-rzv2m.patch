@@ -1,0 +1,14 @@
+diff --git a/drivers/mmc/host/renesas_sdhi_internal_dmac.c b/drivers/mmc/host/renesas_sdhi_internal_dmac.c
+old mode 100644
+new mode 100755
+index 0129837..39fff8a
+--- a/drivers/mmc/host/renesas_sdhi_internal_dmac.c
++++ b/drivers/mmc/host/renesas_sdhi_internal_dmac.c
+@@ -300,6 +300,7 @@ static const struct soc_device_attribute gen3_soc_whitelist[] = {
+ 	/* generic ones */
+ 	{ .soc_id = "r8a774a1" },
+ 	{ .soc_id = "r8a774c0" },
++	{ .soc_id = "r8arzv2m" },
+ 	{ .soc_id = "r8a7795" },
+ 	{ .soc_id = "r8a7796" },
+ 	{ .soc_id = "r8a77965" },

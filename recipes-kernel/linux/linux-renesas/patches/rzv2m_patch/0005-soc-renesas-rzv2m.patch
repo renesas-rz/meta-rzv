@@ -1,0 +1,177 @@
+diff --git a/drivers/soc/renesas/Kconfig b/drivers/soc/renesas/Kconfig
+old mode 100644
+new mode 100755
+index 74cbb55..4c2bd00
+--- a/drivers/soc/renesas/Kconfig
++++ b/drivers/soc/renesas/Kconfig
+@@ -3,7 +3,7 @@ config SOC_RENESAS
+ 	default y if ARCH_RENESAS
+ 	select SOC_BUS
+ 	select RST_RCAR if ARCH_RCAR_GEN1 || ARCH_RCAR_GEN2 || \
+-			   ARCH_R8A774A1 || ARCH_R8A774B1 || ARCH_R8A774C0 || \
++			   ARCH_R8A774A1 || ARCH_R8A774B1 || ARCH_R8A774C0 || ARCH_R9A09G011GBG || \
+ 			   ARCH_R8A7795 || ARCH_R8A7796 || ARCH_R8A77965 || \
+ 			   ARCH_R8A77970 || ARCH_R8A77980 || ARCH_R8A77990 || \
+ 			   ARCH_R8A77995
+@@ -13,6 +13,7 @@ config SOC_RENESAS
+ 	select SYSC_R8A774A1 if ARCH_R8A774A1
+ 	select SYSC_R8A774B1 if ARCH_R8A774B1
+ 	select SYSC_R8A774C0 if ARCH_R8A774C0
++	select SYSC_R9A09G011GBG if ARCH_R9A09G011GBG
+ 	select SYSC_R8A7779 if ARCH_R8A7779
+ 	select SYSC_R8A7790 if ARCH_R8A7790
+ 	select SYSC_R8A7791 if ARCH_R8A7791 || ARCH_R8A7793
+@@ -62,6 +63,10 @@ config SYSC_R8A774C0
+ 	bool "RZ/G2E System Controller support" if COMPILE_TEST
+ 	select SYSC_RCAR
+ 
++config SYSC_R9A09G011GBG
++	bool "RZ/V2M System Controller support" if COMPILE_TEST
++	select SYSC_RCAR
++
+ config SYSC_R8A7779
+ 	bool "R-Car H1 System Controller support" if COMPILE_TEST
+ 	select SYSC_RCAR
+diff --git a/drivers/soc/renesas/Makefile b/drivers/soc/renesas/Makefile
+old mode 100644
+new mode 100755
+index a52850d..c4a273d
+--- a/drivers/soc/renesas/Makefile
++++ b/drivers/soc/renesas/Makefile
+@@ -9,6 +9,7 @@ obj-$(CONFIG_SYSC_R8A77470)	+= r8a77470-sysc.o
+ obj-$(CONFIG_SYSC_R8A774A1)	+= r8a774a1-sysc.o
+ obj-$(CONFIG_SYSC_R8A774B1)	+= r8a774b1-sysc.o
+ obj-$(CONFIG_SYSC_R8A774C0)	+= r8a774c0-sysc.o
++obj-$(CONFIG_SYSC_R9A09G011GBG)	+= r9a09g011gbg-sysc.o
+ obj-$(CONFIG_SYSC_R8A7779)	+= r8a7779-sysc.o
+ obj-$(CONFIG_SYSC_R8A7790)	+= r8a7790-sysc.o
+ obj-$(CONFIG_SYSC_R8A7791)	+= r8a7791-sysc.o
+diff --git a/drivers/soc/renesas/rcar-rst.c b/drivers/soc/renesas/rcar-rst.c
+old mode 100644
+new mode 100755
+index 6c17ec5..4ac648f
+--- a/drivers/soc/renesas/rcar-rst.c
++++ b/drivers/soc/renesas/rcar-rst.c
+@@ -49,6 +49,7 @@ static const struct of_device_id rcar_rst_matches[] __initconst = {
+ 	{ .compatible = "renesas,r8a774a1-rst", .data = &rcar_rst_gen3 },
+ 	{ .compatible = "renesas,r8a774b1-rst", .data = &rcar_rst_gen3 },
+ 	{ .compatible = "renesas,r8a774c0-rst", .data = &rcar_rst_gen3 },
++	{ .compatible = "renesas,r8arzv2m-rst", .data = &rcar_rst_gen3 },
+ 	/* R-Car Gen1 */
+ 	{ .compatible = "renesas,r8a7778-reset-wdt", .data = &rcar_rst_gen1 },
+ 	{ .compatible = "renesas,r8a7779-reset-wdt", .data = &rcar_rst_gen1 },
+diff --git a/drivers/soc/renesas/rcar-sysc.c b/drivers/soc/renesas/rcar-sysc.c
+old mode 100644
+new mode 100755
+index d7a32d9..9e6ac84
+--- a/drivers/soc/renesas/rcar-sysc.c
++++ b/drivers/soc/renesas/rcar-sysc.c
+@@ -284,6 +284,9 @@ static const struct of_device_id rcar_sysc_matches[] __initconst = {
+ #ifdef CONFIG_SYSC_R8A774C0
+ 	{ .compatible = "renesas,r8a774c0-sysc", .data = &r8a774c0_sysc_info },
+ #endif
++#ifdef CONFIG_SYSC_R9A09G011GBG
++	{ .compatible = "renesas,r8arzv2m-sysc", .data = &r8arzv2m_sysc_info },
++#endif
+ #ifdef CONFIG_SYSC_R8A7779
+ 	{ .compatible = "renesas,r8a7779-sysc", .data = &r8a7779_sysc_info },
+ #endif
+@@ -343,6 +346,10 @@ static int __init rcar_sysc_pd_init(void)
+ 	unsigned int i;
+ 	int error;
+ 
++#ifdef CONFIG_SYSC_R9A09G011GBG
++		return 0;
++#endif
++
+ 	np = of_find_matching_node_and_match(NULL, rcar_sysc_matches, &match);
+ 	if (!np)
+ 		return -ENODEV;
+diff --git a/drivers/soc/renesas/rcar-sysc.h b/drivers/soc/renesas/rcar-sysc.h
+old mode 100644
+new mode 100755
+index 9e41ec2..175c710
+--- a/drivers/soc/renesas/rcar-sysc.h
++++ b/drivers/soc/renesas/rcar-sysc.h
+@@ -55,6 +55,7 @@ extern const struct rcar_sysc_info r8a77470_sysc_info;
+ extern const struct rcar_sysc_info r8a774a1_sysc_info;
+ extern const struct rcar_sysc_info r8a774b1_sysc_info;
+ extern const struct rcar_sysc_info r8a774c0_sysc_info;
++extern const struct rcar_sysc_info r8arzv2m_sysc_info;
+ extern const struct rcar_sysc_info r8a7779_sysc_info;
+ extern const struct rcar_sysc_info r8a7790_sysc_info;
+ extern const struct rcar_sysc_info r8a7791_sysc_info;
+diff --git a/drivers/soc/renesas/renesas-soc.c b/drivers/soc/renesas/renesas-soc.c
+old mode 100644
+new mode 100755
+index 85c0758..58e8aa9
+--- a/drivers/soc/renesas/renesas-soc.c
++++ b/drivers/soc/renesas/renesas-soc.c
+@@ -60,6 +60,11 @@ static const struct renesas_family fam_rzg2 __initconst __maybe_unused = {
+ 	.reg	= 0xfff00044,		/* PRR (Product Register) */
+ };
+ 
++static const struct renesas_family fam_rzv2 __initconst __maybe_unused = {
++	.name	= "RZ/V2",
++	.reg	= 0xA3F03104,		/* SYS (Version Register) */
++};
++
+ static const struct renesas_family fam_shmobile __initconst __maybe_unused = {
+ 	.name	= "SH-Mobile",
+ 	.reg	= 0xe600101c,		/* CCCR (Common Chip Code Register) */
+@@ -125,6 +130,11 @@ static const struct renesas_soc soc_rz_g2e __initconst __maybe_unused = {
+ 	.id	= 0x57,
+ };
+ 
++static const struct renesas_soc soc_rz_v2m __initconst __maybe_unused = {
++	.family	= &fam_rzv2,
++	.id	= 0x10,
++};
++
+ static const struct renesas_soc soc_rcar_m1a __initconst __maybe_unused = {
+ 	.family	= &fam_rcar_gen1,
+ };
+@@ -234,6 +244,9 @@ static const struct of_device_id renesas_socs[] __initconst = {
+ #ifdef CONFIG_ARCH_R8A774C0
+ 	{ .compatible = "renesas,r8a774c0",	.data = &soc_rz_g2e },
+ #endif
++#ifdef CONFIG_ARCH_R9A09G011GBG
++	{ .compatible = "renesas,r8arzv2m",	.data = &soc_rz_v2m },
++#endif
+ #ifdef CONFIG_ARCH_R8A7778
+ 	{ .compatible = "renesas,r8a7778",	.data = &soc_rcar_m1a },
+ #endif
+@@ -300,6 +313,7 @@ static int __init renesas_soc_init(void)
+ 	soc = match->data;
+ 	family = soc->family;
+ 
++#ifndef CONFIG_ARCH_R9A09G011GBG
+ 	/* Try PRR first, then hardcoded fallback */
+ 	np = of_find_compatible_node(NULL, NULL, "renesas,prr");
+ 	if (np) {
+@@ -322,6 +336,7 @@ static int __init renesas_soc_init(void)
+ 			return -ENODEV;
+ 		}
+ 	}
++#endif
+ 
+ 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+ 	if (!soc_dev_attr)
+@@ -334,10 +349,17 @@ static int __init renesas_soc_init(void)
+ 	soc_dev_attr->family = kstrdup_const(family->name, GFP_KERNEL);
+ 	soc_dev_attr->soc_id = kstrdup_const(strchr(match->compatible, ',') + 1,
+ 					     GFP_KERNEL);
++#ifndef CONFIG_ARCH_R9A09G011GBG
+ 	if (chipid)
+ 		soc_dev_attr->revision = kasprintf(GFP_KERNEL, "ES%u.%u",
+ 						   ((product >> 4) & 0x0f) + 1,
+ 						   product & 0xf);
++#else
++	product = 0x0;
++	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "ES%u.%u",
++					   ((product >> 4) & 0x0f) + 1,
++					   product & 0xf);
++#endif
+ 
+ 	pr_info("Detected Renesas %s %s %s\n", soc_dev_attr->family,
+ 		soc_dev_attr->soc_id, soc_dev_attr->revision ?: "");

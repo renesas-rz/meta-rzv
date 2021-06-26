@@ -1,0 +1,48 @@
+diff --git a/drivers/usb/host/xhci-rzv2m.c b/drivers/usb/host/xhci-rzv2m.c
+index dfb071d..9c8cb92 100755
+--- a/drivers/usb/host/xhci-rzv2m.c
++++ b/drivers/usb/host/xhci-rzv2m.c
+@@ -57,21 +57,11 @@ int xhci_rzv2m_drd_init(struct usb_hcd *hcd)
+ {
+ 	/* DRD INIT */
+ 	u32 temp;
+-
+ 	if (hcd->regs != NULL) {
+-		/* perecon hostcon reset */
+-		temp = readl(hcd->regs + RZV2M_DRD_HC_OFFSET +
+-				RZV2M_DRD_DRDCON);
+-		temp |= (RZV2M_DRD_PERI_RST | RZV2M_DRD_HOST_RST);
+-		writel(temp, hcd->regs + RZV2M_DRD_HC_OFFSET +
+-				RZV2M_DRD_DRDCON);
+-
+-		/* Host role setting */
+-		temp = readl(hcd->regs + RZV2M_DRD_HC_OFFSET +
+-				RZV2M_DRD_DRDCON);
+-		temp &= ~(RZV2M_DRD_PERICON | RZV2M_DRD_HOST_RST);
+-		writel(temp, hcd->regs + RZV2M_DRD_HC_OFFSET +
+-				RZV2M_DRD_DRDCON);
++		temp = readl(hcd->regs + RZV2M_DRD_HC_OFFSET);
++		if(temp != RZV2M_DRD_PERI_RST){
++			return -EFAULT;
++		}
+ 	}
+ 	return 0;
+ }
+@@ -114,12 +104,16 @@ void xhci_rzv2m_usbtest_init(struct usb_hcd *hcd)
+ void xhci_rzv2m_start(struct usb_hcd *hcd)
+ {
+ 	u32 temp;
+-
+ 	if (hcd->regs != NULL) {
+ 		/* Interrupt Enable */
+ 		temp = readl(hcd->regs + RZV2M_USB3_INTEN);
+ 		temp |= RZV2M_USB3_INT_ENA_VAL;
+ 		writel(temp, hcd->regs + RZV2M_USB3_INTEN);
+ 	}
++	else{
++		return -EFAULT;
++	}
++	
++	return 0;
+ }
+ 

@@ -1,0 +1,187 @@
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+index 7dc63e3..e37040b 100755
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+@@ -11,7 +11,7 @@
+ 
+ / {
+     model = "RZ/V2M";
+-    compatible = "rdk,rdk", "renesas,r8arzv2m";
++        compatible = "renesas,r9a09g011gbg";
+ 
+     aliases {
+         serial0 = &uart0;
+@@ -118,16 +118,6 @@
+ 	companion = <&xhci0>;
+     status = "okay";
+     renesas,usb-role-switch;
+-
+-    port {
+-        #address-cells = <1>;
+-        #size-cells = <0>;
+-
+-        usb3peri_role_switch: endpoint@0 {
+-            reg = <0>;
+-            remote-endpoint = <&hd3ss3220_ep>;
+-        };
+-    };
+ };
+ 
+ &pfc {
+@@ -154,27 +144,8 @@
+ &i2c0 {
+     clock-frequency = <100000>;
+     status = "okay";
+-    hd3ss3220@47 {
+-        compatible = "ti,hd3ss3220";
+-        reg = <0x47>;
+ 
+-        usb_con: connector {
+-            compatible = "usb-c-connector";
+-            label = "USB-C";
+-            data-role = "dual";
+-        };
+-
+-        port {
+-            #address-cells = <1>;
+-            #size-cells = <0>;
+-
+-            hd3ss3220_ep: endpoint@0 {
+-                reg = <0>;
+-                remote-endpoint = <&usb3peri_role_switch>;
+-            };
+-        };
+-    };
+-   clock-generator@68 {
++    clock-generator@68 {
+        compatible = "idt,9fgv0241";
+        reg = <0x68>;
+     };
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
+index 99e5b4b..ecb29c7 100755
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
+@@ -69,27 +69,11 @@
+         /* This value must be overridden by the board */
+         clock-frequency = <0>;
+     };
+-    imclk: imclk@200M {
+-        #clock-cells = <0>;
+-        compatible = "fixed-clock";
+-        clock-frequency = <200000000>;
+-    };
+     pclk: pclk@100M {
+         #clock-cells = <0>;
+         compatible = "fixed-clock";
+         clock-frequency = <100000000>;
+     };
+-
+-    usbclk: usbclk@200M {
+-        #clock-cells = <0>;
+-        compatible = "fixed-clock";
+-        clock-frequency = <200000000>;
+-    };
+-    ethclk: ethclk@200M {
+-        #clock-cells = <0>;
+-        compatible = "fixed-clock";
+-        clock-frequency = <200000000>;
+-    };
+     sys: sys@100M {
+         #clock-cells = <0>;
+         compatible = "fixed-clock";
+@@ -284,7 +268,6 @@
+             compatible = "renesas,rzv2m-csi";
+             reg = <0x00 0xa4020000 0x0 0x80>;
+             interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
+-            /* clocks = <&cpg CPG_MOD 1508>; */
+             clocks = <&csi_clk>;
+             #address-cells = <1>;
+             #size-cells = <0>;
+@@ -297,7 +280,6 @@
+             compatible = "renesas,rzv2m-csi";
+             reg = <0x00 0xa4020080 0x0 0x80>;
+             interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
+-            /* clocks = <&cpg CPG_MOD 1509>; */
+             clocks = <&csi_clk>;
+             #address-cells = <1>;
+             #size-cells = <0>;
+@@ -310,7 +292,6 @@
+             compatible = "renesas,rzv2m-csi";
+             reg = <0x00 0xa4020100 0x0 0x80>;
+             interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
+-            /* clocks = <&cpg CPG_MOD 1510>; */
+             clocks = <&csi_clk>;
+             #address-cells = <1>;
+             #size-cells = <0>;
+@@ -323,7 +304,6 @@
+             compatible = "renesas,rzv2m-csi";
+             reg = <0x00 0xa4020180 0x0 0x80>;
+             interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
+-            /* clocks = <&cpg CPG_MOD 1511>; */
+             clocks = <&csi_clk>;
+             #address-cells = <1>;
+             #size-cells = <0>;
+@@ -336,8 +316,7 @@
+             compatible = "renesas,rzv2m-csi";
+             reg = <0x00 0xa4020200 0x0 0x80>;
+             interrupts = <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
+-            /* clocks = <&cpg CPG_MOD 1512>; */
+-            clocks = <&csi_clk>;
++            clocks = <&cpg CPG_MOD 1512>;
+             #address-cells = <1>;
+             #size-cells = <0>;
+             status = "disabled";
+@@ -349,7 +328,6 @@
+             compatible = "renesas,rzv2m-csi";
+             reg = <0x00 0xa4020280 0x0 0x80>;
+             interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
+-	    /* clocks = <&cpg CPG_MOD 1513>; */
+             clocks = <&csi_clk>;
+             #address-cells = <1>;
+             #size-cells = <0>;
+diff --git a/drivers/mmc/host/renesas_sdhi_internal_dmac.c b/drivers/mmc/host/renesas_sdhi_internal_dmac.c
+index d5c1dab..3b805fa 100755
+--- a/drivers/mmc/host/renesas_sdhi_internal_dmac.c
++++ b/drivers/mmc/host/renesas_sdhi_internal_dmac.c
+@@ -302,7 +302,7 @@ static const struct soc_device_attribute gen3_soc_whitelist[] = {
+ 	{ .soc_id = "r8a774a1" },
+ 	{ .soc_id = "r8a774b1" },
+ 	{ .soc_id = "r8a774c0" },
+-	{ .soc_id = "r8arzv2m" },
++	{ .soc_id = "r9a09g011gbg" },
+ 	{ .soc_id = "r8a7795" },
+ 	{ .soc_id = "r8a7796" },
+ 	{ .soc_id = "r8a77965" },
+diff --git a/drivers/soc/renesas/renesas-soc.c b/drivers/soc/renesas/renesas-soc.c
+index fdc9ed9..a3bda00 100755
+--- a/drivers/soc/renesas/renesas-soc.c
++++ b/drivers/soc/renesas/renesas-soc.c
+@@ -61,7 +61,7 @@ static const struct renesas_family fam_rzg2 __initconst __maybe_unused = {
+ };
+ 
+ static const struct renesas_family fam_rzv2 __initconst __maybe_unused = {
+-	.name	= "RZ/V2",
++	.name	= "RZ/V2M",
+ 	.reg	= 0xA3F03104,		/* SYS (Version Register) */
+ };
+ 
+@@ -245,7 +245,7 @@ static const struct of_device_id renesas_socs[] __initconst = {
+ 	{ .compatible = "renesas,r8a774c0",	.data = &soc_rz_g2e },
+ #endif
+ #ifdef CONFIG_ARCH_R9A09G011GBG
+-	{ .compatible = "renesas,r8arzv2m",	.data = &soc_rz_v2m },
++	{ .compatible = "renesas,r9a09g011gbg",	.data = &soc_rz_v2m },
+ #endif
+ #ifdef CONFIG_ARCH_R8A7778
+ 	{ .compatible = "renesas,r8a7778",	.data = &soc_rcar_m1a },
+@@ -361,8 +361,8 @@ static int __init renesas_soc_init(void)
+ 					   product & 0xf);
+ #endif
+ 
+-	pr_info("Detected Renesas %s %s %s\n", soc_dev_attr->family,
+-		soc_dev_attr->soc_id, soc_dev_attr->revision ?: "");
++	pr_info("Detected Renesas %s (%s)\n", soc_dev_attr->family,
++		soc_dev_attr->soc_id ?: "");
+ 
+ 	soc_dev = soc_device_register(soc_dev_attr);
+ 	if (IS_ERR(soc_dev)) {

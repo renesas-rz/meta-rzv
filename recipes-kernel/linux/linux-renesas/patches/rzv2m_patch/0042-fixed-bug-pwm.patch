@@ -1,0 +1,18 @@
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+index d13e5e2..0c20f17 100755
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+@@ -13,13 +13,6 @@
+     model = "RZ/V2M";
+     compatible = "rdk,rdk", "renesas,r8arzv2m";
+ 
+-    backlight {
+-        compatible = "pwm-backlight";
+-        pwms = <&pwm0 0 5000000>;
+-        brightness-levels = <0 4 8 16 32 64 128 255>;
+-        default-brightness-level = <6>;
+-    };
+-
+     aliases {
+         serial0 = &uart0;
+     };

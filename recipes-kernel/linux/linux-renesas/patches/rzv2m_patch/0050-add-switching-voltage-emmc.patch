@@ -1,0 +1,56 @@
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
+index 6441339..03dfebb 100755
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
+@@ -239,6 +239,7 @@
+             vqmmc-supply = <&reg_1p8v>;
+             bus-width = <8>;
+             non-removable;
++            mmc-hs200-1_8v;
+             status = "disable";
+         };
+         
+diff --git a/drivers/mmc/host/renesas_sdhi_core.c b/drivers/mmc/host/renesas_sdhi_core.c
+index c414f22..5ee89b2 100755
+--- a/drivers/mmc/host/renesas_sdhi_core.c
++++ b/drivers/mmc/host/renesas_sdhi_core.c
+@@ -62,6 +62,7 @@
+ enum switching_voltage_mode{
+ 	psc_mode,
+ 	pfc_mode,
++	none,
+ };
+ 
+ static const struct soc_device_attribute soc_whitelist[] = {
+@@ -261,6 +262,7 @@ static int renesas_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
+ 		}
+ 		return psc_voltage_switch(priv->psc_pins, psc_state);
+ 	}
++	return 0;
+ }
+ 
+ /* SCC registers */
+@@ -664,17 +666,17 @@ int renesas_sdhi_probe(struct platform_device *pdev,
+ 	if (soc){
+ 		priv->switching_volt_type = psc_mode;
+ 			
+-		if(of_property_read_u32(pdev->dev.of_node, "psc-pins", &psc_pins))
+-			priv->switching_volt_type = pfc_mode;
+-
+-		else
+-		{
++		if(of_property_read_u32(pdev->dev.of_node, "psc-pins", &psc_pins)){
+ 			priv->psc_pins = psc_pins;
+ 
+-			if(   32 <= priv->psc_pins ){
++			if(   16 <= priv->psc_pins ){
+ 				return -EINVAL;
+ 			}
+ 		}
++		else
++		{
++			priv->switching_volt_type = none;
++		}
+ 	}
+ 	else
+ 		priv->switching_volt_type = pfc_mode;

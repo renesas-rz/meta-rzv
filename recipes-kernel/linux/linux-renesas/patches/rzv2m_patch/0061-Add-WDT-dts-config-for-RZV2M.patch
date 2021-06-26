@@ -1,0 +1,56 @@
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+index e37040b..7275087 100755
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+@@ -110,6 +110,12 @@
+     clock-frequency = <48000000>;
+ };
+ 
++/* used watch dog timer */
++&wdt0 {
++    status = "okay";
++    timeout-sec = <60>;
++};
++
+ &xhci0 {
+     status = "okay";
+ };
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
+index ecb29c7..6461297 100755
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
+@@ -117,6 +117,22 @@
+         #size-cells = <2>;
+         ranges;
+     
++       /* used watch dog timer */
++       wdt0: watchdog@a4050000 {
++              compatible = "renesas,rzv2m-wdt";
++              reg = <0 0xa4050000 0 0x80>;
++              clocks = <&pclk>,<&wdt_clk>;
++              interrupts = <GIC_SPI 043 IRQ_TYPE_LEVEL_HIGH>;
++              status = "disabled";
++       };
++       wdt1: watchdog@a4050080 {
++              compatible = "renesas,rzv2m-wdt";
++              reg = <0 0xa4050080 0 0x80>;
++              clocks = <&pclk>,<&wdt_clk>;
++              interrupts = <GIC_SPI 044 IRQ_TYPE_LEVEL_HIGH>;
++              status = "disabled";
++       };
++       
+        pfc: pin-controller@B6250000 {
+             compatible = "renesas,pfc-r8arzv2m";
+             reg = <0 0xB6250000 0 0x1000>;
+diff --git a/arch/arm64/configs/defconfig b/arch/arm64/configs/defconfig
+index 350348a..75fdea3 100755
+--- a/arch/arm64/configs/defconfig
++++ b/arch/arm64/configs/defconfig
+@@ -171,6 +171,7 @@ CONFIG_RCAR_GEN3_THERMAL=y
+ CONFIG_RCAR_THERMAL_EMS_ENABLED=y
+ CONFIG_WATCHDOG=y
+ CONFIG_RENESAS_WDT=y
++CONFIG_RENESAS_RZV2M_WDT=y
+ CONFIG_MFD_BD9571MWV=y
+ CONFIG_REGULATOR=y
+ CONFIG_REGULATOR_FIXED_VOLTAGE=y
