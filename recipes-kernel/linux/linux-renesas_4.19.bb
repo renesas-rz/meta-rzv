@@ -1,14 +1,14 @@
-DESCRIPTION = "Linux kernel for the RZG2 based board"
+DESCRIPTION = "Linux kernel for the RZG2 and RZV2L based board"
 
 require recipes-kernel/linux/linux-yocto.inc
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/:"
-COMPATIBLE_MACHINE = "(smarc-rzg2l|rzg2l-dev)"
+COMPATIBLE_MACHINE = "(smarc-rzg2l|rzg2l-dev|smarc-rzv2l|rzv2l-dev)"
 
 KERNEL_URL = " \
     git://github.com/renesas-rz/rz_linux-cip.git"
-BRANCH = "rzg2l-cip41"
-SRCREV = "40bfccf59d2661d20a6acf4391cd68f54d6130b0"
+BRANCH = "rzv2l-cip41"
+SRCREV = "a7930eba8942476e3087c02b16763ff627f55a1f"
 
 SRC_URI = "${KERNEL_URL};protocol=https;nocheckout=1;branch=${BRANCH}"
 SRC_URI_append += "\
