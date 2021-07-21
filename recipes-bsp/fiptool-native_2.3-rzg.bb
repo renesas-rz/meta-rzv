@@ -3,8 +3,8 @@ LIC_FILES_CHKSUM = "file://docs/license.rst;md5=189505435dbcdcc8caa63c46fe93fa89
 require fiptool-native.inc
 
 URL = "git://git@github.com/renesas-rz/rzg_trusted-firmware-a.git"
-BRANCH = "v2.3/rzg2l"
-SRCREV = "baee1ff9a7ab159453776930bc5fa36ba5f05b7b"
+BRANCH = "develop/rzv2l"
+SRCREV = "a66bdcb01cd05bf6ace7538d875744da5d371d72"
 
 SRC_URI = "${URL};protocol=ssh;branch=${BRANCH}"
 
