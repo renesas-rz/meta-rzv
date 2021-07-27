@@ -52,6 +52,14 @@ update_issue() {
       BSP_SOC="RZG2L"
       BSP_BOARD="RZG2L-DEV"
       ;;
+    rzv2l-dev)
+      BSP_SOC="RZV2L"
+      BSP_BOARD="RZV2L-DEV"
+      ;;
+    smarc-rzv2l)
+      BSP_SOC="RZV2L"
+      BSP_BOARD="RZV2L-SMARC-EVK"
+      ;;
     esac
 
     # Make issue file
