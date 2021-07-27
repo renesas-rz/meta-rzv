@@ -17,7 +17,7 @@ require include/rzg2-modules-common.inc
 
 S = "${WORKDIR}/mali_km"
 
-COMPATIBLE_MACHINE = "(r9a07g044l)"
+COMPATIBLE_MACHINE = "(r9a07g044l|r9a07g054l)"
 
 do_fetch[file-checksums] = ""
 
