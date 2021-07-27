@@ -7,7 +7,7 @@ PN = "mali-user-module"
 PV = "r26"
 PR = "p0"
 
-COMPATIBLE_MACHINE = "(r9a07g044l)"
+COMPATIBLE_MACHINE = "(r9a07g044l|r9a07g054l)"
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 
 S = "${WORKDIR}/mali_um"
