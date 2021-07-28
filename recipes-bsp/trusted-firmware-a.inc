@@ -1,5 +1,5 @@
 SECTION = "bootloaders"
-SUMMARY = "Trusted Firmware-A for RZ/G2L"
+SUMMARY = "Trusted Firmware-A for RZ/G2L and RZ/V2L"
 LICENSE = "BSD-3-Clause"
 
 inherit deploy
@@ -8,7 +8,7 @@ DEPENDS = "bootparameter-native u-boot fiptool-native"
 
 S = "${WORKDIR}/git"
 
-COMPATIBLE_MACHINE = "(smarc-rzg2l|rzg2l-dev)"
+COMPATIBLE_MACHINE = "(smarc-rzg2l|rzg2l-dev|smarc-rzv2l|rzv2l-dev)"
 
 PLATFORM_smarc-rzg2l = "rzg2l"
 EXTRA_FLAGS_smarc-rzg2l = "BOARD_TYPE=BOARD_RZG2L_EVA"
@@ -21,6 +21,18 @@ FLASH_ADDRESS_BL2_BP_rzg2l-dev = "00000"
 FLASH_ADDRESS_FIP_rzg2l-dev = "1D200"
 
 PLATFORM = "rzg2l"
+
+PLATFORM_smarc-rzv2l = "v2l"
+EXTRA_FLAGS_smarc-rzv2l = "BOARD=dev15_4"
+FLASH_ADDRESS_BL2_BP_smarc-rzv2l = "00000"
+FLASH_ADDRESS_FIP_smarc-rzv2l = "1D200"
+
+PLATFORM_rzv2l-dev = "v2l"
+EXTRA_FLAGS_rzv2l-dev = "BOARD=dev15_4"
+FLASH_ADDRESS_BL2_BP_rzv2l-dev = "00000"
+FLASH_ADDRESS_FIP_rzv2l-dev = "1D200"
+
+PLATFORM = "rzv2l"
 
 # Requires CROSS_COMPILE set by hand as there is no configure script
 export CROSS_COMPILE="${TARGET_PREFIX}"
