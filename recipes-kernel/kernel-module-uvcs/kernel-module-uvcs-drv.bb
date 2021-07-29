@@ -10,17 +10,18 @@ LIC_FILES_CHKSUM = " \
     file://src/core/MIT-COPYING;md5=fea016ce2bdf2ec10080f69e9381d378 \
     file://src/cmn/MIT-COPYING;md5=fea016ce2bdf2ec10080f69e9381d378 \
 "
+require include/omx-control.inc
 inherit module
 require include/rzg2-modules-common.inc
 PR = "r0"
 
-SRC_URI = "${@oe.utils.conditional('USE_VIDEO_OMX', '1', 'file://RCG3VUDRL4101ZDO.tar.bz2', '', d)}"
+SRC_URI = "${@oe.utils.conditional('USE_VIDEO_OMX', '1', 'file://uvcs_lib_package.tar.bz2', '', d)}"
 
 SRC_URI_append = " \
 	file://0001-Fixing-build-error-kernel-module-uvcs.patch \
 "
 
-S = "${WORKDIR}/RCG3VUDRL4101ZDO"
+S = "${WORKDIR}/uvcs_lib_package"
 
 EXTRA_OEMAKE = "KERNELDIR=${STAGING_KERNEL_BUILDDIR}"
 EXTRA_OEMAKE += "CROSS_COMPILE=${CROSS_COMPILE}"
