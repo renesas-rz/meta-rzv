@@ -1,14 +1,27 @@
-diff --git a/arch/arm64/boot/dts/renesas/r9a07g044l2-smarc.dts b/arch/arm64/boot/dts/renesas/r9a07g044l2-smarc.dts
-index 7318df7ec47f..008046e1fb17 100644
---- a/arch/arm64/boot/dts/renesas/r9a07g044l2-smarc.dts
-+++ b/arch/arm64/boot/dts/renesas/r9a07g044l2-smarc.dts
-@@ -47,5 +47,9 @@
-                 compatible = "renesas,mmngrbuf";
-         };
- 
-+        vspm_if {
-+                compatible = "renesas,vspm_if";
-+        };
+From a38f51a25f681c8b182b102094264e8edbf34acf Mon Sep 17 00:00:00 2001
+From: Nhan Nguyen <nhan.nguyen.yb@renesas.com>
+Date: Sun, 1 Aug 2021 18:24:40 +0700
+Subject: [PATCH] r9a07g054l2-smarc: add vspm_if node
+
+Signed-off-by: Triet Nguyen <triet.nguyen.te@renesas.com>
+
+---
+ arch/arm64/boot/dts/renesas/r9a07g054l2-smarc.dts | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r9a07g054l2-smarc.dts b/arch/arm64/boot/dts/renesas/r9a07g054l2-smarc.dts
+index 70754e4ec269..b6e2264f6618 100644
+--- a/arch/arm64/boot/dts/renesas/r9a07g054l2-smarc.dts
++++ b/arch/arm64/boot/dts/renesas/r9a07g054l2-smarc.dts
+@@ -46,4 +46,8 @@
+ 	mmngrbuf {
+ 		compatible = "renesas,mmngrbuf";
+ 	};
 +
++	vspm_if {
++		compatible = "renesas,vspm_if";
++	};
  };
- 
+-- 
+2.25.1
+
