@@ -1,3 +1,4 @@
 patch patches/main/0001-arm64-dts-renesas-r9a07g054l2-smarc-add-drp_reserved.patch
+patch patches/main/0002-arm64-dts-renesas-r9a07g054l2-dev-Add-vspmif-support.patch
 patch patches/main/0183-add-vspm_if-node.patch
 

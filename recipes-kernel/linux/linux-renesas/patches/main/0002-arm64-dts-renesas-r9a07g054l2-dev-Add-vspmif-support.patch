@@ -1,0 +1,29 @@
+From 39aad4b10f368d96aa425583cd70e9195e4c786d Mon Sep 17 00:00:00 2001
+From: Triet Minh Nguyen <triet.nguyen.te@renesas.com>
+Date: Mon, 2 Aug 2021 16:21:00 +0700
+Subject: [PATCH] arm64: dts: renesas: r9a07g054l2-dev: Add vspmif support
+
+Support vspmif
+
+Signed-off-by: Triet Minh Nguyen <triet.nguyen.te@renesas.com>
+---
+ arch/arm64/boot/dts/renesas/r9a07g054l2-dev.dts | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r9a07g054l2-dev.dts b/arch/arm64/boot/dts/renesas/r9a07g054l2-dev.dts
+index b280fc2d84ec..9d5004c9ea2a 100644
+--- a/arch/arm64/boot/dts/renesas/r9a07g054l2-dev.dts
++++ b/arch/arm64/boot/dts/renesas/r9a07g054l2-dev.dts
+@@ -45,5 +45,9 @@
+ 	mmngrbuf {
+ 		compatible = "renesas,mmngrbuf";
+ 	};
++
++	vspm_if {
++		compatible = "renesas,vspm_if";
++	};
+ };
+ 
+-- 
+2.17.1
+
