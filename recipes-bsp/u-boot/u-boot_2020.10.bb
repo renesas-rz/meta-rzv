@@ -6,7 +6,7 @@ DEPENDS += "bc-native dtc-native"
 
 UBOOT_URL = "git://github.com/renesas-rz/renesas-u-boot-cip.git"
 BRANCH = "v2020.10/rzg2l"
-SRCREV = "49003ff8200f80c37f47713ea9fed5a90e0030a2"
+SRCREV = "7c4310d2fbef5b48b5e50d3aec75a78e8a6a2fe2"
 
 # When using private git repo, you can append ";user=username:password" to SRC_URI
 # to download the remote repo.
