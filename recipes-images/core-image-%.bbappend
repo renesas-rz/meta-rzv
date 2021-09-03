@@ -6,7 +6,7 @@ update_issue() {
     case "${MACHINE}" in
     rzv2m)
       BSP_SOC="RZV2M"
-      BSP_BOARD="Evaluation Board"
+      BSP_BOARD="Evaluation Kit"
       ;;
     esac
 

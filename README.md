@@ -1,8 +1,8 @@
-# **rocko/rzv2m**　　
+# **rocko/rzv2m**  
 
 This is a Yocto build layer that provides support for RZ/V2M from Renesas Electronics.  
 Currently, the following boards are supported:  
-- Board: RZ/V2M Evaluation Board (RZ/V2M)  
+- Board: RZ/V2M Evaluation Kit  
 
 Refer to "Yocto Start-Up Guide" to know the detailed instructions. Get this document from Renesas web site.  
 
