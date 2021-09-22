@@ -50,7 +50,7 @@ RDEPENDS_packagegroup-gstreamer1.0-plugins-video = " \
     ${@bb.utils.contains('DISTRO_FEATURES', 'wayland', \
         'gstreamer1.0-plugins-bad-waylandsink', '', d)} \
     gstreamer1.0-plugins-ugly-asf \
-    gstreamer1.0-libav \
+    ${@bb.utils.contains("LICENSE_FLAGS_WHITELIST", "commercial", "gstreamer1.0-libav", "", d)} \
     gstreamer1.0-rtsp-server \
 "
 
