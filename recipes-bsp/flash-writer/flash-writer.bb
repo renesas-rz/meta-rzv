@@ -20,6 +20,10 @@ do_compile() {
                 BOARD="RZG2L_SMARC";
         elif [ "${MACHINE}" = "rzg2l-dev" ]; then
                 BOARD="RZG2L_15MMSQ_DEV";
+        elif [ "${MACHINE}" = "smarc-rzv2l" ]; then
+                BOARD="RZV2L_SMARC";
+        elif [ "${MACHINE}" = "rzv2l-dev" ]; then
+                BOARD="RZV2L_15MMSQ_DEV";
         fi
         cd ${S}
 
