@@ -8,7 +8,7 @@ FLASH_WRITER_URL = "git://github.com/renesas-rz/rzg2_flash_writer"
 BRANCH = "rz_g2l"
 
 SRC_URI = "${FLASH_WRITER_URL};branch=${BRANCH}"
-SRCREV = "22c9ca352c7c243e771529908da929777c7a1471"
+SRCREV = "126ed36e30594869d4ecec45fc28cb15ea91c1c2"
 
 inherit deploy
 #require include/provisioning.inc
@@ -22,12 +22,17 @@ do_compile() {
                 BOARD="RZG2L_15MMSQ_DEV";
         elif [ "${MACHINE}" = "smarc-rzv2l" ]; then
                 BOARD="RZV2L_SMARC";
+		PMIC_BOARD="RZV2L_SMARC_PMIC";
         elif [ "${MACHINE}" = "rzv2l-dev" ]; then
                 BOARD="RZV2L_15MMSQ_DEV";
         fi
         cd ${S}
 
 	oe_runmake BOARD=${BOARD}
+
+	if [ "${PMIC_SUPPORT}" = "1" ]; then
+		oe_runmake BOARD=${PMIC_BOARD};
+	fi
 }
 
 do_install[noexec] = "1"
