@@ -22,6 +22,7 @@ FLASH_ADDRESS_FIP_rzg2l-dev = "1D200"
 PLATFORM = "rzv2l"
 PLATFORM_smarc-rzv2l = "v2l"
 EXTRA_FLAGS_smarc-rzv2l = "BOARD=smarc_4"
+PMIC_EXTRA_FLAGS_smarc-rzv2l = "BOARD=smarc_pmic_2"
 FLASH_ADDRESS_BL2_BP_smarc-rzv2l = "00000"
 FLASH_ADDRESS_FIP_smarc-rzv2l = "1D200"
 
@@ -29,6 +30,8 @@ PLATFORM_rzv2l-dev = "v2l"
 EXTRA_FLAGS_rzv2l-dev = "BOARD=dev15_4"
 FLASH_ADDRESS_BL2_BP_rzv2l-dev = "00000"
 FLASH_ADDRESS_FIP_rzv2l-dev = "1D200"
+
+PMIC_BUILD_DIR = "${S}/build_pmic"
 
 # Requires CROSS_COMPILE set by hand as there is no configure script
 export CROSS_COMPILE="${TARGET_PREFIX}"
@@ -45,6 +48,10 @@ do_configure[noexec] = "1"
 do_compile () {
 	# Build TF-A
 	oe_runmake PLAT=${PLATFORM} ${EXTRA_FLAGS} bl2 bl31
+
+	if [ "${PMIC_SUPPORT}" = "1" ]; then
+		oe_runmake PLAT=${PLATFORM} ${PMIC_EXTRA_FLAGS} BUILD_PLAT=${PMIC_BUILD_DIR} bl2 bl31
+	fi
 }
 
 do_deploy () {
@@ -56,6 +63,11 @@ do_deploy () {
 	install -m 0644 ${S}/build/${PLATFORM}/release/bl2.bin ${DEPLOYDIR}/bl2-${MACHINE}.bin
 	install -m 0644 ${S}/build/${PLATFORM}/release/bl31/bl31.elf ${DEPLOYDIR}/bl31-${MACHINE}.elf
 	install -m 0644 ${S}/build/${PLATFORM}/release/bl31.bin ${DEPLOYDIR}/bl31-${MACHINE}.bin
+
+	if [ "${PMIC_SUPPORT}" = "1" ]; then
+		install -m 0644 ${PMIC_BUILD_DIR}/bl2.bin ${DEPLOYDIR}/bl2-${MACHINE}_pmic.bin
+		install -m 0644 ${PMIC_BUILD_DIR}/bl31.bin ${DEPLOYDIR}/bl31-${MACHINE}_pmic.bin
+	fi
 }
 
 addtask deploy before do_build after do_compile
