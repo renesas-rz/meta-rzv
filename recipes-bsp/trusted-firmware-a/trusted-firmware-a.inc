@@ -4,26 +4,25 @@ LICENSE = "BSD-3-Clause"
 
 inherit deploy
 
-DEPENDS = "bootparameter-native u-boot fiptool-native"
-
 S = "${WORKDIR}/git"
 
 COMPATIBLE_MACHINE = "(smarc-rzg2l|rzg2l-dev|smarc-rzv2l|rzv2l-dev)"
 
-PLATFORM_smarc-rzg2l = "rzg2l"
-EXTRA_FLAGS_smarc-rzg2l = "BOARD_TYPE=BOARD_RZG2L_EVA"
+PLATFORM ?= "g2l"
+PLATFORM_smarc-rzg2l = "g2l"
+EXTRA_FLAGS_smarc-rzg2l = "BOARD=smarc_2"
 FLASH_ADDRESS_BL2_BP_smarc-rzg2l = "00000"
 FLASH_ADDRESS_FIP_smarc-rzg2l = "1D200"
 
-PLATFORM_rzg2l-dev = "rzg2l"
-EXTRA_FLAGS_rzg2l-dev = "BOARD_TYPE=BOARD_RZG2L_15MMSQ"
+PLATFORM_rzg2l-dev = "g2l"
+EXTRA_FLAGS_rzg2l-dev = "BOARD=dev15_4"
 FLASH_ADDRESS_BL2_BP_rzg2l-dev = "00000"
 FLASH_ADDRESS_FIP_rzg2l-dev = "1D200"
 
-PLATFORM = "rzg2l"
-
+PLATFORM = "rzv2l"
 PLATFORM_smarc-rzv2l = "v2l"
-EXTRA_FLAGS_smarc-rzv2l = "BOARD=dev15_4"
+EXTRA_FLAGS_smarc-rzv2l = "BOARD=smarc_4"
+PMIC_EXTRA_FLAGS_smarc-rzv2l = "BOARD=smarc_pmic_2"
 FLASH_ADDRESS_BL2_BP_smarc-rzv2l = "00000"
 FLASH_ADDRESS_FIP_smarc-rzv2l = "1D200"
 
@@ -32,7 +31,7 @@ EXTRA_FLAGS_rzv2l-dev = "BOARD=dev15_4"
 FLASH_ADDRESS_BL2_BP_rzv2l-dev = "00000"
 FLASH_ADDRESS_FIP_rzv2l-dev = "1D200"
 
-PLATFORM = "rzv2l"
+PMIC_BUILD_DIR = "${S}/build_pmic"
 
 # Requires CROSS_COMPILE set by hand as there is no configure script
 export CROSS_COMPILE="${TARGET_PREFIX}"
@@ -50,19 +49,9 @@ do_compile () {
 	# Build TF-A
 	oe_runmake PLAT=${PLATFORM} ${EXTRA_FLAGS} bl2 bl31
 
-	# Create bl2_bp.bin
-	bootparameter build/${PLATFORM}/release/bl2.bin bl2_bp.bin
-	cat build/${PLATFORM}/release/bl2.bin >> bl2_bp.bin
-
-	# Create fip.bin
-	fiptool create --align 16 --soc-fw build/${PLATFORM}/release/bl31.bin --nt-fw ${WORKDIR}/recipe-sysroot/boot/u-boot.bin fip.bin
-
-	# Convert to srec
-	objcopy -O srec --adjust-vma=0x00011E00 --srec-forceS3 -I binary bl2_bp.bin bl2_bp.srec
-	objcopy -I binary -O srec --adjust-vma=0x0000 --srec-forceS3 fip.bin fip.srec
-
-	PROGRAM_SIZE_BL2_BP=$(printf "%x" `wc -c < bl2_bp.bin`)
-	PROGRAM_SIZE_FIP=$(printf "%x" `wc -c < fip.bin`)
+	if [ "${PMIC_SUPPORT}" = "1" ]; then
+		oe_runmake PLAT=${PLATFORM} ${PMIC_EXTRA_FLAGS} BUILD_PLAT=${PMIC_BUILD_DIR} bl2 bl31
+	fi
 }
 
 do_deploy () {
@@ -75,11 +64,10 @@ do_deploy () {
 	install -m 0644 ${S}/build/${PLATFORM}/release/bl31/bl31.elf ${DEPLOYDIR}/bl31-${MACHINE}.elf
 	install -m 0644 ${S}/build/${PLATFORM}/release/bl31.bin ${DEPLOYDIR}/bl31-${MACHINE}.bin
 
-	# Copy fip images
-	install -m 0644 ${S}/bl2_bp.bin ${DEPLOYDIR}/bl2_bp-${MACHINE}.bin
-	install -m 0644 ${S}/bl2_bp.srec ${DEPLOYDIR}/bl2_bp-${MACHINE}.srec
-	install -m 0644 ${S}/fip.bin ${DEPLOYDIR}/fip-${MACHINE}.bin
-	install -m 0644 ${S}/fip.srec ${DEPLOYDIR}/fip-${MACHINE}.srec
+	if [ "${PMIC_SUPPORT}" = "1" ]; then
+		install -m 0644 ${PMIC_BUILD_DIR}/bl2.bin ${DEPLOYDIR}/bl2-${MACHINE}_pmic.bin
+		install -m 0644 ${PMIC_BUILD_DIR}/bl31.bin ${DEPLOYDIR}/bl31-${MACHINE}_pmic.bin
+	fi
 }
 
 addtask deploy before do_build after do_compile
