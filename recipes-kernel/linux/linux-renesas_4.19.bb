@@ -81,6 +81,9 @@ SRC_URI_append_r9a09g011gbg += "\
   file://patches/rzv2m_patch/0060-Add-WDT-driver-source-for-RZV2M.patch \
   file://patches/rzv2m_patch/0061-Add-WDT-dts-config-for-RZV2M.patch \
   file://patches/rzv2m_patch/0062-fixed-bug-csi.patch \
+  file://patches/rzv2m_patch/0063-apply-ddr-4gb.patch \
+  file://patches/rzv2m_patch/0064-chg-gic-init.patch \
+  file://patches/rzv2m_patch/0065-fixed-bug-usb-peripheral-driver.patch \
 "
 
 LIC_FILES_CHKSUM = "file://COPYING;md5=bbea815ee2795b2f4230826c0c6b8814"

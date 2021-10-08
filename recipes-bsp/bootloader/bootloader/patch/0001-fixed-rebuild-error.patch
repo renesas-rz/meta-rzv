@@ -1,0 +1,512 @@
+diff --git a/source/1st_loader/gen_128Kbin/sumzero.py b/source/1st_loader/gen_128Kbin/sumzero.py
+index 3eeb5a0..2299e6b 100644
+--- a/source/1st_loader/gen_128Kbin/sumzero.py
++++ b/source/1st_loader/gen_128Kbin/sumzero.py
+@@ -25,7 +25,7 @@ if __name__ == "__main__":
+      chunk = f.read(MAX_MEM_SIZE)
+      #print(chunk)
+ 
+-    with open(filePath2, 'ab') as f:
++    with open(filePath2, 'wb') as f:
+         f.write(chunk)
+     size = len(chunk)
+ 
+diff --git a/source/1st_loader/src/main.c b/source/1st_loader/src/main.c
+index c4b4281..748b053 100644
+--- a/source/1st_loader/src/main.c
++++ b/source/1st_loader/src/main.c
+@@ -100,7 +100,7 @@ int main(void)
+ 	UartSetup();
+     
+     /* Boot log */
+-    uart0_print("[BL1] Boot Loader Version 1.00\n");
++    uart0_print("[BL1] Boot Loader Version 1.10\n");
+ 
+ 	/*Initialize eMMC*/
+ 	if (EMMC_SUCCESS != emmc_init(FALSE)) { /* Normal clock mode */
+diff --git a/source/2nd_loader/gen_bootparam/sum.py b/source/2nd_loader/gen_bootparam/sum.py
+index 3cfa145..777c2b3 100644
+--- a/source/2nd_loader/gen_bootparam/sum.py
++++ b/source/2nd_loader/gen_bootparam/sum.py
+@@ -37,7 +37,7 @@ if __name__ == "__main__":
+     print("sum: {0}".format(filePath, hex(a_data)))
+ 
+     
+-    f=open(filePath2, mode ='ab')
++    f=open(filePath2, mode ='wb')
+     a_size = os.path.getsize(filePath)
+     b_size = a_size.to_bytes(4, 'little')
+     print("size: {0}".format(a_size))
+diff --git a/source/2nd_loader/src/HardwareSetup.c b/source/2nd_loader/src/HardwareSetup.c
+index ca928e2..def20d6 100644
+--- a/source/2nd_loader/src/HardwareSetup.c
++++ b/source/2nd_loader/src/HardwareSetup.c
+@@ -30,13 +30,25 @@
+ #include "rdk_cmn_cpg.h"
+ #include "rdk_cmn_pmc.h"
+ #include "rdk_common.h"
++#include "rdk_ddr_api.h"
++#include "rdk_cmn_icb.h"
++#include "rdk_uart_16750.h"
+ 
+-void HardwareSetup(void)
++static st_pmc_local_t gs_pmc_priv =
++{
++    .mem_time = 0x176F176F, /* PD_MEM External Power On/Off Wait: 2ms/2ms */
++    .pwron_time = 0x176F,   /* PD External Power On Wait: 2ms */
++};
++
++static int32_t PowerOn_PD_MEM_FromPOR(void);
++
++
++void PowerOnDDR(void)
+ {
+ 	int32_t res;
+ 
+ 	/* Power On DDR */
+-	res = PMC_PowerOn_PD_MEM_FromPOR();
++	res = PowerOn_PD_MEM_FromPOR();
+ 
+ 	if(CMN_SUCCESS != res)
+ 	{
+@@ -45,5 +57,135 @@ void HardwareSetup(void)
+ 	}
+ }
+ 
++static int32_t PowerOn_PD_MEM_FromPOR(void)
++{
++    int32_t rslt;
++
++    do
++    {
++        CPG_SetClockCtrl(27, 0x0017, 0x0000);
++        CPG_SetClockCtrl(16, 0x0020, 0x0000);
++        CPG_SetClockCtrl(17, 0x0100, 0x0000);
++
++        CPG_SetResetCtrl(7, 0x0002, 0x0000);
++
++        CPG_SetPDResetCtrl(CPG_PD_RST_MEM_RSTB, CPG_PD_RST_MEM_RSTB);
++
++        rslt = CPG_WakeUpPLL(CPG_PLL_3);
++        if (CMN_SUCCESS != rslt)
++        {
++            break;
++        }
++
++        PMC_WriteReg(PMC_PD_MEM_TIM, gs_pmc_priv.mem_time);
++
++        rslt = pmc_TurnPower(PMC_PD_MEM, PMC_POWER_ON);
++        if (CMN_SUCCESS != rslt)
++        {
++            break;
++        }
++
++        CPG_SetClockCtrl(27, 0x0011, 0x0011);
++        CMN_DelayInMS(210);
++
++        rslt = pmc_TurnIsolation(PMC_PD_MEM, PMC_ISOLATION_OFF);
++        if (CMN_SUCCESS != rslt)
++        {
++            break;
++        }
++
++        CPG_SetClockCtrl(27, 0x0006, 0x0006);
++
++        CPG_SetResetCtrl(15, 0x0008, 0x0008);
++
++		CMN_DelayInMS(210);
++        CPG_SetResetCtrl(15, 0x0010, 0x0010);
++
++        MMC_InitialSetting();
++
++        MMC_DisableRefAndPD();
++
++        MMC_DisableSignal_dfi_init_complete();
++
++        rslt = MMC_WaitBitForSW_Done();
++        if (CMN_SUCCESS != rslt)
++        {
++            break;
++        }
++
++        CPG_SetResetCtrl(15, 0x0005, 0x0005);
++
++        CPG_SetResetCtrl(15, 0x0020, 0x0020);
++        CMN_DelayInUS(1);
++
++        CPG_SetResetCtrl(15, 0x0040, 0x0040);
++
++        rslt = DDI_InitalizePHY();
++        if (CMN_SUCCESS != rslt)
++        {
++            break;
++        }
++
++        MMC_StartDfiInit();
++        rslt = MMC_WaitBitForSW_Done();
++        if (CMN_SUCCESS != rslt)
++        {
++            break;
++        }
++        rslt = MMC_WaitBitForDFI_INIT_COMPLETE();
++        if (CMN_SUCCESS != rslt)
++        {
++            break;
++        }
++
++        MMC_EnableSignal_dfi_init_complete();
++        rslt = MMC_WaitBitForSW_Done();
++        if (CMN_SUCCESS != rslt)
++        {
++            break;
++        }
++
++        rslt = MMC_WaitToDFI_NormalOperation();
++        if (CMN_SUCCESS != rslt)
++        {
++            break;
++        }
++
++        MMC_SetBackRegisters();
++
++        DDI_DFI_InitComplete();
++
++        MMC_EnablePort();
++
++        CPG_SetResetCtrl(7, 0x0002, 0x0002);
++
++        CMN_DelayInUS(5);
++
++        CPG_SetClockCtrl(16, 0x0020, 0x0020);
++
++        CPG_SetClockCtrl(17, 0x0100, 0x0100);
++
++        rslt = pmc_ConnectBus(PMC_PD_MEM, PMC_BUS_CONNECT);
++        if (CMN_SUCCESS != rslt)
++        {
++            break;
++        }
++
++        rslt = ICB_SetDDRSche();
++        if (CMN_SUCCESS != rslt)
++        {
++            break;
++        }
++
++        cmn_SYS_WriteReg(0x020C, 0x01);
++
++        uart0_print("[BL2] DDR initialization completed\n");
++
++        rslt = CMN_SUCCESS;
++    }
++    while (0);
++
++    return rslt;
++}
+ 
+ /*- End of File -*/
+diff --git a/source/2nd_loader/src/main.c b/source/2nd_loader/src/main.c
+index af46627..a6985e8 100644
+--- a/source/2nd_loader/src/main.c
++++ b/source/2nd_loader/src/main.c
+@@ -51,7 +51,7 @@
+ void (*u_boot)(void);
+ 
+ 
+-extern void HardwareSetup(void);
++extern void PowerOnDDR(void);
+ extern void UartSetup(void);
+ 
+ struct st_boot_param{
+@@ -108,7 +108,7 @@ int main( void )
+ 	};
+ 
+ 	/*- DDR setting -*/
+-	HardwareSetup(); 
++	PowerOnDDR(); 
+ 
+ 	/*return from 2nd Loader*/
+ 	/*Load U-Boot to DDR*/
+diff --git a/source/Makefile b/source/Makefile
+index ef881e9..b19c168 100644
+--- a/source/Makefile
++++ b/source/Makefile
+@@ -35,10 +35,6 @@ COMPILER_FLAGS=
+ EXTRA_COMPILER_FLAGS=
+ CC_FLAGS	=	$(subst -pg, -DPROFILING, $(COMPILER_FLAGS))
+ 
+-ifeq ("$(TARGET)", "loader_2nd")
+-CC_FLAGS	+=	-DLOADER2ND
+-endif
+-
+ ECC_FLAGS	=	$(subst -pg, -DPROFILING, $(EXTRA_COMPILER_FLAGS))
+ ECC_FLAGS	+=	-nostartfiles -march=armv8-a
+ 
+diff --git a/source/common/inc/rdk_cmn_pmc.h b/source/common/inc/rdk_cmn_pmc.h
+index 7c62c81..bc519e3 100644
+--- a/source/common/inc/rdk_cmn_pmc.h
++++ b/source/common/inc/rdk_cmn_pmc.h
+@@ -101,10 +101,35 @@ typedef enum
+     PMC_ERROR_NO_EXIST_BUS_CONNECT  = -343
+ } e_pmc_error_code_t;
+ 
++typedef enum
++{
++    PMC_PD_AWO      = 0,
++    PMC_PD_MEM      = 1,
++    PMC_PD_CA53     = 7,
++} e_pmc_kind_pd_t;
++
++typedef enum
++{
++    PMC_ISOLATION_ON    = 0,
++    PMC_ISOLATION_OFF   = 1,
++    PMC_POWER_ON        = 0,
++    PMC_POWER_OFF       = 1,
++    PMC_BUS_CONNECT     = 0,
++    PMC_BUS_SEPARATE    = 1
++} e_pmc_on_off_t;
++
++typedef struct
++{
++	uint32_t mem_time;
++	uint16_t pwron_time;
++} st_pmc_local_t;
++
++
+ /** prototype defined **/
+ uint32_t PMC_ReadReg(uint32_t offset);
+ void PMC_WriteReg(uint32_t offset, uint32_t value);
+-int32_t PMC_PowerOn_PD_MEM_FromPOR(void);
+-
++int32_t pmc_TurnPower(e_pmc_kind_pd_t kind_pd, e_pmc_on_off_t on_flag);
++int32_t pmc_TurnIsolation(e_pmc_kind_pd_t kind_pd, e_pmc_on_off_t on_flag);
++int32_t pmc_ConnectBus(e_pmc_kind_pd_t kind_pd, e_pmc_on_off_t on_flag);
+ 
+ #endif /* RDK_CMN_PMC_H */
+diff --git a/source/common/src/rdk_cmn_pmc.c b/source/common/src/rdk_cmn_pmc.c
+index 7dc3d5d..d315ec4 100644
+--- a/source/common/src/rdk_cmn_pmc.c
++++ b/source/common/src/rdk_cmn_pmc.c
+@@ -35,12 +35,6 @@
+ #include "rdk_common.h"
+ #include "rdk_cmn_pmc.h"
+ #include "rdk_cmn_cpg.h"
+-#ifdef LOADER2ND
+-#include "rdk_ddr_api.h"
+-#include "rdk_cmn_icb.h"
+-#endif
+-
+-#include "rdk_uart_16750.h"
+ 
+ #define PMC_TIMEOUT_UNIT_IN_US (10)
+ #define PMC_SEQUENCE_POWER_ON_TIMEOUT (500000)
+@@ -69,25 +63,6 @@
+ 		}                                                              \
+ 	}
+ 
+-typedef struct
+-{
+-	uint8_t reg_num;
+-	uint16_t target;
+-	uint16_t value;
+-} st_cpg_setting_data_t;
+-
+-typedef struct
+-{
+-	uint32_t mem_time;
+-	uint16_t pwron_time;
+-} st_pmc_local_t;
+-
+-static st_pmc_local_t gs_pmc_priv =
+-{
+-    .mem_time = 0x176F176F, /* PD_MEM External Power On/Off Wait: 2ms/2ms */
+-    .pwron_time = 0x176F,   /* PD External Power On Wait: 2ms */
+-};
+-
+ uint32_t PMC_ReadReg(uint32_t offset)
+ {
+ 	return (CMN_REG_Read32(PMC_BASE_ADDRESS + offset));
+@@ -98,25 +73,8 @@ void PMC_WriteReg(uint32_t offset, uint32_t value)
+ 	CMN_REG_Write32((PMC_BASE_ADDRESS + offset), value);
+ }
+ 
+-#ifdef LOADER2ND
+-typedef enum
+-{
+-    PMC_PD_AWO      = 0,
+-    PMC_PD_MEM      = 1,
+-    PMC_PD_CA53     = 7,
+-} e_pmc_kind_pd_t;
+-
+-typedef enum
+-{
+-    PMC_ISOLATION_ON    = 0,
+-    PMC_ISOLATION_OFF   = 1,
+-    PMC_POWER_ON        = 0,
+-    PMC_POWER_OFF       = 1,
+-    PMC_BUS_CONNECT     = 0,
+-    PMC_BUS_SEPARATE    = 1
+-} e_pmc_on_off_t;
+ 
+-static int32_t pmc_TurnPower(e_pmc_kind_pd_t kind_pd, e_pmc_on_off_t on_flag)
++int32_t pmc_TurnPower(e_pmc_kind_pd_t kind_pd, e_pmc_on_off_t on_flag)
+ {
+     int32_t rslt = CMN_ERROR;
+     uint32_t value;
+@@ -169,7 +127,7 @@ static int32_t pmc_TurnPower(e_pmc_kind_pd_t kind_pd, e_pmc_on_off_t on_flag)
+     return rslt;
+ }
+ 
+-static int32_t pmc_TurnIsolation(e_pmc_kind_pd_t kind_pd, e_pmc_on_off_t on_flag)
++int32_t pmc_TurnIsolation(e_pmc_kind_pd_t kind_pd, e_pmc_on_off_t on_flag)
+ {
+     int32_t rslt = CMN_ERROR;
+     uint32_t offset_reg_isoen = 0xFFFFFFFF;
+@@ -220,8 +178,7 @@ static int32_t pmc_TurnIsolation(e_pmc_kind_pd_t kind_pd, e_pmc_on_off_t on_flag
+     return rslt;
+ }
+ 
+-
+-static int32_t pmc_ConnectBus(e_pmc_kind_pd_t kind_pd, e_pmc_on_off_t on_flag)
++int32_t pmc_ConnectBus(e_pmc_kind_pd_t kind_pd, e_pmc_on_off_t on_flag)
+ {
+     int32_t rslt = CMN_ERROR;
+     uint32_t value;
+@@ -291,136 +248,4 @@ static int32_t pmc_ConnectBus(e_pmc_kind_pd_t kind_pd, e_pmc_on_off_t on_flag)
+     return rslt;
+ }
+ 
+-int32_t PMC_PowerOn_PD_MEM_FromPOR(void)
+-{
+-    int32_t rslt;
+-
+-    do
+-    {
+-        CPG_SetClockCtrl(27, 0x0017, 0x0000);
+-        CPG_SetClockCtrl(16, 0x0020, 0x0000);
+-        CPG_SetClockCtrl(17, 0x0100, 0x0000);
+-
+-        CPG_SetResetCtrl(7, 0x0002, 0x0000);
+-
+-        CPG_SetPDResetCtrl(CPG_PD_RST_MEM_RSTB, CPG_PD_RST_MEM_RSTB);
+-
+-        rslt = CPG_WakeUpPLL(CPG_PLL_3);
+-        if (CMN_SUCCESS != rslt)
+-        {
+-            break;
+-        }
+-
+-        PMC_WriteReg(PMC_PD_MEM_TIM, gs_pmc_priv.mem_time);
+-
+-        rslt = pmc_TurnPower(PMC_PD_MEM, PMC_POWER_ON);
+-        if (CMN_SUCCESS != rslt)
+-        {
+-            break;
+-        }
+-
+-        CPG_SetClockCtrl(27, 0x0011, 0x0011);
+-        CMN_DelayInMS(210);
+-
+-        rslt = pmc_TurnIsolation(PMC_PD_MEM, PMC_ISOLATION_OFF);
+-        if (CMN_SUCCESS != rslt)
+-        {
+-            break;
+-        }
+-
+-        CPG_SetClockCtrl(27, 0x0006, 0x0006);
+-
+-        CPG_SetResetCtrl(15, 0x0008, 0x0008);
+-
+-		CMN_DelayInMS(210);
+-        CPG_SetResetCtrl(15, 0x0010, 0x0010);
+-
+-        MMC_InitialSetting();
+-
+-        MMC_DisableRefAndPD();
+-
+-        MMC_DisableSignal_dfi_init_complete();
+-
+-        rslt = MMC_WaitBitForSW_Done();
+-        if (CMN_SUCCESS != rslt)
+-        {
+-            break;
+-        }
+-
+-        CPG_SetResetCtrl(15, 0x0005, 0x0005);
+-
+-        CPG_SetResetCtrl(15, 0x0020, 0x0020);
+-        CMN_DelayInUS(1);
+-
+-        CPG_SetResetCtrl(15, 0x0040, 0x0040);
+-
+-        rslt = DDI_InitalizePHY();
+-        if (CMN_SUCCESS != rslt)
+-        {
+-            break;
+-        }
+-
+-        MMC_StartDfiInit();
+-        rslt = MMC_WaitBitForSW_Done();
+-        if (CMN_SUCCESS != rslt)
+-        {
+-            break;
+-        }
+-        rslt = MMC_WaitBitForDFI_INIT_COMPLETE();
+-        if (CMN_SUCCESS != rslt)
+-        {
+-            break;
+-        }
+-
+-        MMC_EnableSignal_dfi_init_complete();
+-        rslt = MMC_WaitBitForSW_Done();
+-        if (CMN_SUCCESS != rslt)
+-        {
+-            break;
+-        }
+-
+-        rslt = MMC_WaitToDFI_NormalOperation();
+-        if (CMN_SUCCESS != rslt)
+-        {
+-            break;
+-        }
+-
+-        MMC_SetBackRegisters();
+-
+-        DDI_DFI_InitComplete();
+-
+-        MMC_EnablePort();
+-
+-        CPG_SetResetCtrl(7, 0x0002, 0x0002);
+-
+-        CMN_DelayInUS(5);
+-
+-        CPG_SetClockCtrl(16, 0x0020, 0x0020);
+-
+-        CPG_SetClockCtrl(17, 0x0100, 0x0100);
+-
+-        rslt = pmc_ConnectBus(PMC_PD_MEM, PMC_BUS_CONNECT);
+-        if (CMN_SUCCESS != rslt)
+-        {
+-            break;
+-        }
+-
+-        rslt = ICB_SetDDRSche();
+-        if (CMN_SUCCESS != rslt)
+-        {
+-            break;
+-        }
+-
+-        cmn_SYS_WriteReg(0x020C, 0x01);
+-
+-        uart0_print("[BL2] DDR initialization completed\n");
+-
+-        rslt = CMN_SUCCESS;
+-    }
+-    while (0);
+-
+-    return rslt;
+-}
+-#endif
+-
+ /*- End of file -*/

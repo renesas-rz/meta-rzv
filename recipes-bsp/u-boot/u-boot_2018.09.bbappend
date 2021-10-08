@@ -8,6 +8,7 @@ PR = "r1"
 
 SRC_URI_append_r9a09g011gbg += "\
   file://0001-updated-uboot-rzv2m.patch \
+  file://0002-chg-l2cache-clear.patch \
   "
 EXE_PYTHON = "python3"
 PY_FILE = "${B}/${config}/scripts/sum.py"
