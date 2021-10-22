@@ -1,9 +1,9 @@
-# meta-rzg2
+# meta-rzv
 
-This is a Yocto build layer(version:dunfell) that provides support for the RZ/G2L Group of 64bit Arm-based MPUs from Renesas Electronics.
+This is a Yocto build layer(version:dunfell) that provides support for the RZ/V2L Group of 64bit Arm-based MPUs from Renesas Electronics.
 Currently the following boards and MPUs are supported:
 
-- Board: RZG2L SMARC Evaluation Kit / MPU: R9A77G044L2 (RZ/G2L)
+- Board: RZV2L SMARC Evaluation Kit / MPU: R9A77G054L2 (RZ/V2L)
 
 ## Patches
 
@@ -35,15 +35,12 @@ This layer depends on:
 Assume that $WORK is the current working directory.
 The following instructions require a Poky installation (or equivalent).
 
-Below git configuration is required:
-```bash
+Below git configuration is required: ```bash
     $ git config --global user.email "you@example.com"
     $ git config --global user.name "Your Name"
 ```
 
-Download proprietary graphics and multimedia drivers from Renesas, include:
-- proprietary_mmp.tar.gz
-- vspmfilter.tar.xz
+**Note:** Please contact Renesas to download Multimedia package ( meta-rz-features ).
 (Graphic drivers are required for Wayland. Multimedia drivers are optional)
 
 You can get all Yocto build environment from Renesas, or download all Yocto related public source to prepare the build environment as below.
@@ -63,24 +60,25 @@ You can get all Yocto build environment from Renesas, or download all Yocto rela
     $ cd meta-gplv2 
     $ git checkout 60b251c25ba87e946a0ca4cdc8d17b1cb09292ac
     $
-    $ git clone  https://github.com/renesas-rz/meta-rzg2.git
-    $ cd meta-rzg2
+    $ git clone  https://github.com/renesas-rz/meta-rzv.git
+    $ cd meta-rzv
     $ git checkout <tag>
     $ cd ..
 ```
-\<tag\> can be selected in any tags of meta-rzg2.
-Now the latest version is **rzg2l_bsp_v1.1**
+\<tag\> can be selected in any tags of meta-rzv.
+Now the latest version is **rzv2l_bsp_v1.0**
 
-[Optional] If you need GPU/Codec support, or build Weston image, this step helps to copy them to build environment. Copy file proprietary_mmp.tar.gz and vspmfilter.tar.xz to $WORK and do below commands.
+[Optional] If you need GPU/Codec support, or build Weston image, this step helps to copy them to build environment. Please contact Renesas to get the package meta-rz-features, and copy to $WORK and do below commands. Assuming the package is meta-rz-features.tar.gz
 ```bash
-    $ tar -xf proprietary_mmp.tar.gz
-    $ cd proprietary_mmp
-    $ ./copy_gfx_mmp.sh ../meta-rzg2
-    $ cd ..
-    $
-    $ cp vspmfilter.tar.xz meta-rzg2/recipes-multimedia/gstreamer/gstreamer1.0-plugin-vspmfilter
-    $ 
+    $ cd $WORK
+    $ tar -xf meta-rz-features.tar.gz
 ```
+To build without Codec library, please set as below in local.conf:
+* USE_CODEC_ENC = "0"
+* USE_CODEC_DEC = "0"
+
+If you do not set as above, Codec library will be built together with Graphic library by default.
+
 
 Initialize a build using the 'oe-init-build-env' script in Poky. e.g.:
 ```bash
@@ -89,9 +87,9 @@ Initialize a build using the 'oe-init-build-env' script in Poky. e.g.:
 
 Prepare default configuration files. :
 ```bash
-    $ cp $WORK/meta-rzg2/docs/template/conf/<board>/*.conf ./conf/
+    $ cp $WORK/meta-rzv/docs/template/conf/<board>/*.conf ./conf/
 ```
-\<board\> : smarc-rzg2l, rzg2l-dev
+\<board\> : smarc-rzv2l, rzv2l-dev
 
 Build the target file system image using bitbake:
 ```bash
@@ -145,3 +143,4 @@ It is possible to change some build configs as below:
   ```
   CIP_CORE = "1"
   ```
+
