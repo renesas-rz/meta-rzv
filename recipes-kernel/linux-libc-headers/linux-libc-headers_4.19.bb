@@ -3,7 +3,7 @@ require recipes-kernel/linux-libc-headers/linux-libc-headers.inc
 KERNEL_URL = " \
     git://github.com/renesas-rz/rz_linux-cip.git"
 BRANCH = "rzv2l-cip41"
-SRCREV = "2956ea751890931f89e868ebe4f045211e5a0d73"
+SRCREV = "e49fe02a249b3bf7c98418352964405c335b7bf2"
 LIC_FILES_CHKSUM = "file://COPYING;md5=bbea815ee2795b2f4230826c0c6b8814"
 
 SRC_URI = "${KERNEL_URL};branch=${BRANCH}"
