@@ -1,0 +1,33 @@
+From d21f0e02b5a59e9bdbffc811f918b0db0a311458 Mon Sep 17 00:00:00 2001
+From: Nhat Thieu <nhat.thieu.xr@renesas.com>
+Date: Mon, 15 Nov 2021 12:13:38 +0700
+Subject: [PATCH 4/4] Fix memory leak
+
+Firstly, we intend to create this buffer for display list.
+However, now it is unnecessary. So we remove it.
+
+Signed-off-by: Nhat Thieu <nhat.thieu.xr@renesas.com>
+---
+ vspm_if-module/files/vspm_if/drv/vspm_if_sub.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/vspm_if-module/files/vspm_if/drv/vspm_if_sub.c b/vspm_if-module/files/vspm_if/drv/vspm_if_sub.c
+index dd4d8de..ffe6b26 100644
+--- a/vspm_if-module/files/vspm_if/drv/vspm_if_sub.c
++++ b/vspm_if-module/files/vspm_if/drv/vspm_if_sub.c
+@@ -952,9 +952,9 @@ int set_isu_par(
+ 	}
+ 
+ 	/* get work buffer */
+-	isu->work_buff = get_work_buffer(entry->priv);
+-	if (!isu->work_buff)
+-		return -EFAULT;
++//	isu->work_buff = get_work_buffer(entry->priv);
++//	if (!isu->work_buff)
++//		return -EFAULT;
+ 
+ 	/* copy isu_src_t parameter */
+ 	if(isu->par.src_par){
+-- 
+2.7.4
+
