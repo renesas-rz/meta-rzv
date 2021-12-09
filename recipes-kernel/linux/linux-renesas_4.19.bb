@@ -38,3 +38,5 @@ do_kernel_configme[depends] += "bc-native:do_populate_sysroot bison-native:do_po
 
 # Fix error: openssl/bio.h: No such file or directory
 DEPENDS += "openssl-native"
+
+KERNEL_FEATURES += " strict_devmem.scc"
