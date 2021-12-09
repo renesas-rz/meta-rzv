@@ -2,4 +2,11 @@ patch patches/main/0001-arm64-dts-renesas-r9a07g054l2-smarc-add-drp_reserved.pat
 patch patches/main/0002-arm64-dts-renesas-r9a07g054l2-dev-Add-vspmif-support.patch
 patch patches/main/0003-Fixed-an-issue-that-caused-flicker-when-outputting-t.patch
 patch patches/main/0183-add-vspm_if-node.patch
-
+patch patches/rzv2l/0001_apply_memorymap_for_rzv2l.patch
+patch patches/rzv2l/0002-added-u-dma-buf-driver.patch
+patch patches/rzv2l/0004-update-cpg-function-for-drp.patch
+patch patches/rzv2l/0005-revert-media-rzg2l-cru-correct-YC-separation-output-color-f.patch
+patch patches/rzv2l/0006-ov5645-Add-VGA-720x480-and-720p-resloutions.patch
+patch patches/rzv2l/0007-ov5645-Add-pixel-rate-support-for-each-mode.patch
+patch patches/rzv2l/0008-rzg2l-csi-Add-BGR24-and-YUYV-support.patch
+patch patches/rzv2l/0009-rzg2l-dma-Add-BGR24-and-YUYV-support.patch
