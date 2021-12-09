@@ -29,6 +29,7 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 RDEPENDS_${PN}-plugins += " \
 	gstreamer1.0 \
 	${@bb.utils.contains("LICENSE_FLAGS_WHITELIST", "commercial", "gstreamer1.0-libav", "", d)} \
+	${@bb.utils.contains("LICENSE_FLAGS_WHITELIST", "commercial_gstreamer1.0-libav", "gstreamer1.0-libav", "", d)} \
 	gstreamer1.0-plugins-base-app \
 	gstreamer1.0-plugins-good \
 	gstreamer1.0-plugins-good-video4linux2 \
