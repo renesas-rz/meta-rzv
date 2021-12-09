@@ -1,4 +1,6 @@
 require include/core-image-renesas-base.inc
+require include/extend_packages.inc
+require include/core-image-sdk.inc
 
 IMAGE_INSTALL_append = " util-linux glib-2.0"
 
