@@ -73,12 +73,6 @@ Now the latest version is **rzv2l_bsp_v1.0**
     $ cd $WORK
     $ tar -xf meta-rz-features.tar.gz
 ```
-To build without Codec library, please set as below in local.conf:
-* USE_CODEC_ENC = "0"
-* USE_CODEC_DEC = "0"
-
-If you do not set as above, Codec library will be built together with Graphic library by default.
-
 
 Initialize a build using the 'oe-init-build-env' script in Poky. e.g.:
 ```bash
