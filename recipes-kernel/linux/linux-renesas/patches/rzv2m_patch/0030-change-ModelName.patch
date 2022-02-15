@@ -1,13 +1,26 @@
+From b0f5c80a9b471259da568090a7113179b62ad538 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Mon, 13 Sep 2021 13:57:44 +0700
+Subject: [PATCH] change-ModelName
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-index 1e03381..cd0b636 100755
+index e07732a..6c0e378 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 @@ -10,7 +10,7 @@
  #include <dt-bindings/gpio/gpio.h>
  
  / {
--	model = "RZ/GV2M RDK platform";
-+	model = "RZ/V2M";
- 	compatible = "renesas,evaluation-board", "renesas,r9a09g011gbg";
+-       model = "RZ/GV2M RDK platform";
++       model = "RZ/V2M";
+        compatible = "renesas,evaluation-board", "renesas,r9a09g011gbg";
  
- 	aliases {
+        aliases {
+-- 
+2.7.4
+

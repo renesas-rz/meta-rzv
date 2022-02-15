@@ -1,13 +1,26 @@
+From d682c0796ff79a4b230aac0bc8bc409f505efb74 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Mon, 13 Sep 2021 13:10:20 +0700
+Subject: [PATCH] enabled_read-only_mappings
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-index 4781fc1..886051b 100755
+index 9be1c79..7662bcc 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 @@ -18,7 +18,7 @@
- 	};
+        };
  
- 	chosen {
--		bootargs = "earlycon=uart,mmio32,0xA4040000,115200n8 console=ttyS0,115200n8 loglevel=8 vmalloc=384M root=/dev/mmcblk0p2 rootwait rootfstype=ext3 rw";
-+		bootargs = "earlycon=uart,mmio32,0xA4040000,115200n8 console=ttyS0,115200n8 loglevel=8 vmalloc=384M root=/dev/mmcblk0p2 rootwait rootfstype=ext3 rw; rodata=off";
- 		stdout-path = "serial0:115200n8";
- 	};
+        chosen {
+-               bootargs = "earlycon=uart,mmio32,0xA4040000,115200n8 console=ttyS0,115200n8 loglevel=8 vmalloc=384M root=/dev/mmcblk0p2 rootwait rootfstype=ext3 rw";
++               bootargs = "earlycon=uart,mmio32,0xA4040000,115200n8 console=ttyS0,115200n8 loglevel=8 vmalloc=384M root=/dev/mmcblk0p2 rootwait rootfstype=ext3 rw; rodata=off";
+                stdout-path = "serial0:115200n8";
+        };
  
+-- 
+2.7.4
+

@@ -1,5 +1,16 @@
+From 520624f3f88850bef76cb4ded895abbcf61eaf1d Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 15 Sep 2021 10:20:33 +0700
+Subject: [PATCH] enable-usb-peripheral
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi | 5 +++--
+ drivers/usb/gadget/udc/renesas_usb3.c         | 8 ++++----
+ 2 files changed, 7 insertions(+), 6 deletions(-)
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
-index a6e20b0..6441339 100755
+index e63e76f..ba3ca03 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 @@ -205,10 +205,11 @@
@@ -17,28 +28,31 @@ index a6e20b0..6441339 100755
              status = "disabled";
          };
 diff --git a/drivers/usb/gadget/udc/renesas_usb3.c b/drivers/usb/gadget/udc/renesas_usb3.c
-index a011e3c..14e8495 100755
+index b414d36..724a458 100644
 --- a/drivers/usb/gadget/udc/renesas_usb3.c
 +++ b/drivers/usb/gadget/udc/renesas_usb3.c
-@@ -44,9 +44,9 @@
+@@ -45,9 +45,9 @@
  #define USB3_USB_INT_ENA_2	0x22c
  #define USB3_STUP_DAT_0		0x230
  #define USB3_STUP_DAT_1		0x234
 -#define USB3_USB_OTG_STA	0x268
 -#define USB3_USB_OTG_INT_STA	0x26c
 -#define USB3_USB_OTG_INT_ENA	0x270
-+#define USB3_USB_OTG_STA	0x410
-+#define USB3_USB_OTG_INT_STA	0x414
-+#define USB3_USB_OTG_INT_ENA	0x418
++#define USB3_USB_OTG_STA        0x410
++#define USB3_USB_OTG_INT_STA    0x414
++#define USB3_USB_OTG_INT_ENA    0x418
  #define USB3_P0_MOD		0x280
  #define USB3_P0_CON		0x288
  #define USB3_P0_STA		0x28c
-@@ -154,7 +154,7 @@
+@@ -155,7 +155,7 @@
  #define USB_INT_2_PIPE(n)	BIT(n)
  
  /* USB_OTG_STA, USB_OTG_INT_STA and USB_OTG_INT_ENA */
 -#define USB_OTG_IDMON		BIT(4)
-+#define USB_OTG_IDMON		BIT(0)
++#define USB_OTG_IDMON           BIT(0)
  
  /* P0_MOD */
  #define P0_MOD_DIR		BIT(6)
+-- 
+2.7.4
+

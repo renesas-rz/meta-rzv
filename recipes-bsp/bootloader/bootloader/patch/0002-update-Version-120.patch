@@ -1,0 +1,13 @@
+diff --git a/source/1st_loader/src/main.c b/source/1st_loader/src/main.c
+index 1b0ee80..2504b75 100644
+--- a/source/1st_loader/src/main.c
++++ b/source/1st_loader/src/main.c
+@@ -100,7 +100,7 @@ int main(void)
+ 	UartSetup();
+     
+     /* Boot log */
+-    uart0_print("[BL1] Boot Loader Version 1.10\n");
++    uart0_print("[BL1] Boot Loader Version 1.20\n");
+ 
+ 	/*Initialize eMMC*/
+ 	if (EMMC_SUCCESS != emmc_init(FALSE)) { /* Normal clock mode */

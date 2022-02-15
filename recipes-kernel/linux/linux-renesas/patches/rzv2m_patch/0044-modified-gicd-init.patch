@@ -1,5 +1,17 @@
-diff --git b/drivers/irqchip/irq-gic-renesas-rzv2m.h b/drivers/irqchip/irq-gic-renesas-rzv2m.h
-new file mode 100755
+From ca996d37326484dfd2d235bdcdede07f5449bba0 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 15 Sep 2021 09:01:57 +0700
+Subject: [PATCH] modified-gicd-init
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ drivers/irqchip/irq-gic-renesas-rzv2m.h | 119 ++++++++++++++++++++++++++++++++
+ drivers/irqchip/irq-gic.c               |  12 ++++
+ 2 files changed, 131 insertions(+)
+ create mode 100644 drivers/irqchip/irq-gic-renesas-rzv2m.h
+
+diff --git a/drivers/irqchip/irq-gic-renesas-rzv2m.h b/drivers/irqchip/irq-gic-renesas-rzv2m.h
+new file mode 100644
 index 0000000..4628f8c
 --- /dev/null
 +++ b/drivers/irqchip/irq-gic-renesas-rzv2m.h
@@ -124,7 +136,7 @@ index 0000000..4628f8c
 +};
 +#endif /* __IRQ_GIC_RENESAS_RZV2M_H__ */
 diff --git a/drivers/irqchip/irq-gic.c b/drivers/irqchip/irq-gic.c
-index ced10c4..917ca1f 100755
+index b5417012..766a1d1 100644
 --- a/drivers/irqchip/irq-gic.c
 +++ b/drivers/irqchip/irq-gic.c
 @@ -50,6 +50,8 @@
@@ -136,20 +148,23 @@ index ced10c4..917ca1f 100755
  #ifdef CONFIG_ARM64
  #include <asm/cpufeature.h>
  
-@@ -501,6 +503,16 @@ static void gic_dist_init(struct gic_chip_data *gic)
+@@ -493,6 +495,16 @@ static void gic_dist_init(struct gic_chip_data *gic)
  	for (i = 32; i < gic_irqs; i += 4)
  		writel_relaxed(cpumask, base + GIC_DIST_TARGET + i * 4 / 4);
  
-+	/*
-+	 * Set all global interrupts to CPU #0 and #1 for RZ/V2M.
-+	 */
++       /*
++        * Set all global interrupts to CPU #0 and #1 for RZ/V2M.
++        */
 +    {
 +        unsigned int cnt, t_size;
 +        t_size = sizeof(gic_init_target) / sizeof(u32);
-+    	for (cnt = 0; cnt < t_size; cnt++)
++       for (cnt = 0; cnt < t_size; cnt++)
 +            writel_relaxed(gic_init_target[cnt], base + GIC_DIST_TARGET + (0x20+(cnt*4)));
 +    }
-+    
++
  	gic_dist_config(base, gic_irqs, NULL);
  
  	writel_relaxed(GICD_ENABLE, base + GIC_DIST_CTRL);
+-- 
+2.7.4
+

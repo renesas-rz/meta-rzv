@@ -1,0 +1,33 @@
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+index fe77b1e..5de260a 100644
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
+@@ -33,7 +33,7 @@
+         ranges;
+ 
+         /* global autoconfigured region for contiguous allocations */
+-        linux,cma@1B8000000 {
++        global_cma: linux,cma@1B8000000 {
+             compatible = "shared-dma-pool";
+             reusable;
+             reg = <0x1 0xB8000000 0x0 0x8000000>;
+@@ -117,6 +117,7 @@
+ };
+ 
+ &xhci0 {
++    memory-region = <&global_cma>;
+     status = "okay";
+ };
+ 
+diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
+index 0c5583b..d5c92c2 100644
+--- a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
++++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
+@@ -109,6 +109,7 @@
+         #address-cells = <2>;
+         #size-cells = <2>;
+         ranges;
++        dma-ranges =<0x1 0x80000000 0x1 0x80000000 0x0 0x80000000>;
+ 
+        /* used watch dog timer */
+        wdt0: watchdog@a4050000 {

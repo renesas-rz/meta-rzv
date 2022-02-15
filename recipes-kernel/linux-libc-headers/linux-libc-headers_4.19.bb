@@ -2,8 +2,8 @@ require recipes-kernel/linux-libc-headers/linux-libc-headers.inc
 
 KERNEL_URL = " \
     git://git.kernel.org/pub/scm/linux/kernel/git/cip/linux-cip.git"
-BRANCH = "linux-4.19.y-cip"
-SRCREV = "5b7dee96a2b4fffe481be81edc72fd104ed047ab"
+BRANCH = "linux-4.19.y-cip-rt"
+SRCREV = "fe6e4a43439eedd3351ba9aff3eaa38dc14e9034"
 LIC_FILES_CHKSUM = "file://COPYING;md5=bbea815ee2795b2f4230826c0c6b8814"
 
 SRC_URI = "${KERNEL_URL};branch=${BRANCH}"

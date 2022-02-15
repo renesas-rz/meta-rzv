@@ -1,8 +1,20 @@
+From c0d9498b6e1afab7d53fefd6e8c0400d51ff1058 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 15 Sep 2021 17:26:51 +0700
+Subject: [PATCH] Add-WDT-dts-config-for-RZV2M
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ .../boot/dts/renesas/r9a09g011gbg-evaluation-board.dts   |  6 ++++++
+ arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi            | 16 ++++++++++++++++
+ arch/arm64/configs/defconfig                             |  1 +
+ 3 files changed, 23 insertions(+)
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-index e37040b..7275087 100755
+index 114f38c..a4c55c7 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-@@ -110,6 +110,12 @@
+@@ -111,6 +111,12 @@
      clock-frequency = <48000000>;
  };
  
@@ -16,13 +28,13 @@ index e37040b..7275087 100755
      status = "okay";
  };
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
-index ecb29c7..6461297 100755
+index 5c7569b..3b3be0e 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 @@ -117,6 +117,22 @@
          #size-cells = <2>;
          ranges;
-     
+ 
 +       /* used watch dog timer */
 +       wdt0: watchdog@a4050000 {
 +              compatible = "renesas,rzv2m-wdt";
@@ -38,15 +50,15 @@ index ecb29c7..6461297 100755
 +              interrupts = <GIC_SPI 044 IRQ_TYPE_LEVEL_HIGH>;
 +              status = "disabled";
 +       };
-+       
++
         pfc: pin-controller@B6250000 {
              compatible = "renesas,pfc-r8arzv2m";
              reg = <0 0xB6250000 0 0x1000>;
 diff --git a/arch/arm64/configs/defconfig b/arch/arm64/configs/defconfig
-index 350348a..75fdea3 100755
+index a596ab0..00d7000 100644
 --- a/arch/arm64/configs/defconfig
 +++ b/arch/arm64/configs/defconfig
-@@ -171,6 +171,7 @@ CONFIG_RCAR_GEN3_THERMAL=y
+@@ -178,6 +178,7 @@ CONFIG_RCAR_GEN3_THERMAL=y
  CONFIG_RCAR_THERMAL_EMS_ENABLED=y
  CONFIG_WATCHDOG=y
  CONFIG_RENESAS_WDT=y
@@ -54,3 +66,6 @@ index 350348a..75fdea3 100755
  CONFIG_MFD_BD9571MWV=y
  CONFIG_REGULATOR=y
  CONFIG_REGULATOR_FIXED_VOLTAGE=y
+-- 
+2.7.4
+

@@ -1,7 +1,15 @@
+From 52fe49a712151ecb1f2757fdd40f9ef70bd0893d Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 11 Aug 2021 09:56:59 +0700
+Subject: [PATCH] include asm generic serial renesas rzv2m
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ include/asm-generic/serial.h | 4 ++++
+ 1 file changed, 4 insertions(+)
+
 diff --git a/include/asm-generic/serial.h b/include/asm-generic/serial.h
-old mode 100644
-new mode 100755
-index ca9f7b6..59a24c5
+index ca9f7b6..6ca4621 100644
 --- a/include/asm-generic/serial.h
 +++ b/include/asm-generic/serial.h
 @@ -9,6 +9,10 @@
@@ -9,9 +17,12 @@ index ca9f7b6..59a24c5
   */
  
 +#if defined(CONFIG_ARCH_R9A09G011GBG)
-+	#define BASE_BAUD (48000000 / 16)
-+#else	/* defined(CONFIG_ARCH_R9A09G011GBG) */
++       #define BASE_BAUD (48000000 / 16)
++#else  /* defined(CONFIG_ARCH_R9A09G011GBG) */
  #define BASE_BAUD (1843200 / 16)
-+#endif	/* defined(CONFIG_ARCH_R9A09G011GBG) */
++#endif /* defined(CONFIG_ARCH_R9A09G011GBG) */
  
  #endif /* __ASM_GENERIC_SERIAL_H */
+-- 
+2.7.4
+

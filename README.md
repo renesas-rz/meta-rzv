@@ -2,12 +2,12 @@
 
 This is a Yocto build layer that provides support for RZ/V2M from Renesas Electronics.  
 Currently, the following boards are supported:  
-- Board: RZ/V2M Evaluation Kit  
+- Board: RZ/V2M Evaluation Board Kit  
 
 Refer to "Yocto Start-Up Guide" to know the detailed instructions. Get this document from Renesas web site.  
 
 ## Notice
-**When you use this repository, you must rename the directory “meta-rzv” to “meta-rzv2m”. Otherwise, it may not build this package correctly.** 
+**When you use this repository, you must rename the directory meta-rzv to meta-rzv2m. Otherwise, it may not build this package correctly.** 
 
 ## Patches
 To contribute to this layer, you should email patches to renesas-rz@renesas.com. Please send .patch files as email attachments, not embedded in the email body.  

@@ -1,5 +1,15 @@
+From 811a7bb0c027dfa92a8a0f17f7c8cfa6c5cd462e Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 15 Sep 2021 08:30:38 +0700
+Subject: [PATCH] fixed-bug-pwm
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts | 7 -------
+ 1 file changed, 7 deletions(-)
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-index d13e5e2..0c20f17 100755
+index 24dbc83..7f90345 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 @@ -13,13 +13,6 @@
@@ -16,3 +26,6 @@ index d13e5e2..0c20f17 100755
      aliases {
          serial0 = &uart0;
      };
+-- 
+2.7.4
+

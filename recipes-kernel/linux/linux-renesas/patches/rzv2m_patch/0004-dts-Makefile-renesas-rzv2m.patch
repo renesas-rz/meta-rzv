@@ -1,14 +1,25 @@
+From 8215ece52bb623bdf77b90c8cda083a5de454410 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Mon, 9 Aug 2021 14:41:45 +0700
+Subject: [PATCH] dts Makefile renesas rzv2m
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ arch/arm64/boot/dts/renesas/Makefile | 1 +
+ 1 file changed, 1 insertion(+)
+
 diff --git a/arch/arm64/boot/dts/renesas/Makefile b/arch/arm64/boot/dts/renesas/Makefile
-old mode 100644
-new mode 100755
-index 547ec6e..b65b4d6
+index 089c303..c3696af 100644
 --- a/arch/arm64/boot/dts/renesas/Makefile
 +++ b/arch/arm64/boot/dts/renesas/Makefile
-@@ -5,6 +5,7 @@ dtb-$(CONFIG_ARCH_R8A774B1) +=	r8a774b1-hihope-rzg2n.dtb \
- 				r8a774b1-hihope-rzg2n-ex.dtb
- dtb-$(CONFIG_ARCH_R8A774C0) += r8a774c0-cat874.dtb r8a774c0-ek874.dtb
- dtb-$(CONFIG_ARCH_R8A774C0) += r8a774c0-es10-cat874.dtb r8a774c0-es10-ek874.dtb
-+dtb-$(CONFIG_ARCH_R9A09G011GBG) += r9a09g011gbg-evaluation-board.dtb
+@@ -35,6 +35,7 @@ dtb-$(CONFIG_ARCH_R8A774E1) += r8a774e1-hihope-rzg2h.dtb
+ dtb-$(CONFIG_ARCH_R8A774E1) += r8a774e1-hihope-rzg2h-ex.dtb
+ dtb-$(CONFIG_ARCH_R8A774E1) += r8a774e1-hihope-rzg2h-ex-idk-1110wr.dtb
+ dtb-$(CONFIG_ARCH_R8A774E1) += r8a774e1-hihope-rzg2h-ex-mipi-2.1.dtb
++dtb-$(CONFIG_ARCH_R9A09G011GBG) += r9a09g011gbg-evaluation-board.dtb 
  dtb-$(CONFIG_ARCH_R8A7795) += r8a7795-salvator-x.dtb r8a7795-h3ulcb.dtb
  dtb-$(CONFIG_ARCH_R8A7795) += r8a7795-h3ulcb-kf.dtb
  dtb-$(CONFIG_ARCH_R8A7795) += r8a7795-salvator-xs.dtb
+-- 
+2.7.4
+

@@ -1,23 +1,26 @@
+From 0319222c89c048b6b1718d5d0c6bc9c555227663 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 15 Sep 2021 08:54:53 +0700
+Subject: [PATCH] fixed-bug-hw_tim
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ drivers/Makefile           |  2 +-
+ drivers/hw_tim/tim_rzv2m.c | 35 +++++++++++++++++++++++------------
+ 2 files changed, 24 insertions(+), 13 deletions(-)
+
 diff --git a/drivers/Makefile b/drivers/Makefile
-index 68c105b..d55ede9 100644
+index 25fcb36..8229f4c 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
 @@ -187,4 +187,4 @@ obj-$(CONFIG_UNISYS_VISORBUS)	+= visorbus/
  obj-$(CONFIG_SIOX)		+= siox/
  obj-$(CONFIG_GNSS)		+= gnss/
- obj-$(CONFIG_U_DMA_BUF)	+= udmabuf/
--obj-y	+= hw_tim/
-+obj-$(CONFIG_TIM_RZV2M)	+= hw_tim/
-diff --git a/drivers/hw_tim/Makefile b/drivers/hw_tim/Makefile
-index 8ac6097..5d4a34f 100644
---- a/drivers/hw_tim/Makefile
-+++ b/drivers/hw_tim/Makefile
-@@ -1,2 +1,2 @@
- # SPDX-License-Identifier: GPL-2.0
--obj-y                           += tim_rzv2m.o
-+obj-$(CONFIG_TIM_RZV2M)              += tim_rzv2m.o
+ obj-$(CONFIG_U_DMA_BUF)        += udmabuf/
+-obj-y  += hw_tim/
++obj-$(CONFIG_TIM_RZV2M)        += hw_tim/
 diff --git a/drivers/hw_tim/tim_rzv2m.c b/drivers/hw_tim/tim_rzv2m.c
-index 935ebaa..b970df5 100644
+index 72233ab8..be3854d 100644
 --- a/drivers/hw_tim/tim_rzv2m.c
 +++ b/drivers/hw_tim/tim_rzv2m.c
 @@ -29,6 +29,7 @@
@@ -37,25 +40,23 @@ index 935ebaa..b970df5 100644
  
  
  /******************************************************************************
-@@ -108,15 +111,24 @@ static int rzv2m_tim_start(struct tim_priv *priv)
- {
+@@ -109,14 +112,23 @@ static int rzv2m_tim_start(struct tim_priv *priv)
      int ret = 0;
      unsigned long time_left;
--    
-+
+ 
 +    if( 0 != (readl( priv->base + TMCD ) & ( TMCD_CE | TMCD_CAE )) ){
 +        writel(TMCD_TIM_STOP, priv->base + TMCD);
-+        udelay(3);/* delay  5 ×（1/PCLK（Hz））＋5×（1/INCLOCK （Hz））*/
++        udelay(3);/* delay  5 [0m~W[0m~H1/PCLK[0m~HHz[0m~I[0m~I[0m~K5[0m~W[0m~H1/INCLOCK [0m~HHz[0m~I[0m~I*/
 +    }
 +
      switch(priv->ioctl_inf.mode)
      {
      case IOCTL_START_FREERUN:
-         
+ 
          printk("IOCTL_START_FREERUN mode\n");
 -        writel(MAX_TIMCYS, priv->base + CMD);
 -        writel((TMCD_CS(priv->ioctl_inf.clk_div) | TMCD_TIM_START), priv->base + TMCD);
--        
+-
 +        if( priv->ioctl_inf.clk_div > TMCD_MAXDIV_C0C1C2 )
 +        {
 +            return -EINVAL;
@@ -65,17 +66,17 @@ index 935ebaa..b970df5 100644
 +        }
          break;
      case IOCTL_START_INTERRUPT:
-         
+ 
 @@ -126,7 +138,7 @@ static int rzv2m_tim_start(struct tim_priv *priv)
          if( ret < 0 )
              return ret;
-         
+ 
 -        time_left = wait_for_completion_timeout(&priv->hw_tim_wait_done, 60 * HZ );
 +        time_left = wait_for_completion_timeout(&priv->hw_tim_wait_done, MAX_TIM_TIMEOUT * HZ );
          if (!time_left)
              return -ETIMEDOUT;
-         
-@@ -157,18 +169,17 @@ static int rzv2m_calc_cycle_div(struct tim_priv *priv)
+ 
+@@ -157,19 +169,18 @@ static int rzv2m_calc_cycle_div(struct tim_priv *priv)
      if (clk_mhz == 0)
          return -EINVAL;
  
@@ -93,11 +94,15 @@ index 935ebaa..b970df5 100644
 +        if( max_cnt >= usec )
              break;
      }
--    
+ 
 -    if( div >= TMCD_MAXDIV_C0C1C2 )
 -    {
 -        return -EINVAL;
 -    }
- 
+-
      priv->ioctl_inf.clk_div = div;
      priv->cmd_count = tim_cmd_val;
+ 
+-- 
+2.7.4
+

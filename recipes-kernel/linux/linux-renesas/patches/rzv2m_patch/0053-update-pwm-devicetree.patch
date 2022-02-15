@@ -1,8 +1,18 @@
+From cffae6505d4999a35748c8c9696dfe13b3ed699d Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 15 Sep 2021 13:53:35 +0700
+Subject: [PATCH] update-pwm-devicetree
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts | 4 ----
+ 1 file changed, 4 deletions(-)
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-index c96582c..afab61a 100755
+index f2deaa0..28d6701 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-@@ -209,10 +209,6 @@
+@@ -210,10 +210,6 @@
      status = "okay";
  };
  
@@ -13,3 +23,6 @@ index c96582c..afab61a 100755
  &tim8 {
      status = "okay";
  };
+-- 
+2.7.4
+

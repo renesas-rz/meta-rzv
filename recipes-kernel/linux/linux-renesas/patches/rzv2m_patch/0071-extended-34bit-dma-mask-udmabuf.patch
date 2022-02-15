@@ -1,0 +1,13 @@
+diff --git a/drivers/udmabuf/udmabuf.c b/drivers/udmabuf/udmabuf.c
+index 969c361..1fa9479 100644
+--- a/drivers/udmabuf/udmabuf.c
++++ b/drivers/udmabuf/udmabuf.c
+@@ -956,6 +956,8 @@ static int udmabuf_device_setup(struct udmabuf_device_data* this)
+     /*
+      * set this->dma_dev->dma_mask
+      */
++    dma_set_mask_and_coherent(this->dma_dev,DMA_BIT_MASK(34));  //34bit extension for rzv2m
++
+     if (*this->dma_dev->dma_mask == 0) {
+         if (dma_set_mask(this->dma_dev, DMA_BIT_MASK(dma_mask_bit)) == 0) {
+            dma_set_coherent_mask(this->dma_dev, DMA_BIT_MASK(dma_mask_bit));

@@ -1,268 +1,284 @@
+From d98febeb6e7cafba5ea4725cb6b6673d4f58832e Mon Sep 17 00:00:00 2001
+From: Anh Ly <anh.ly.yb@renesas.com>
+Date: Mon, 13 Sep 2021 10:11:10 +0700
+Subject: [PATCH] modified-dts-defconfig-sdboot-rzv2m
+
+Signed-off-by: Anh Ly <anh.ly.yb@renesas.com>
+---
+ .../dts/renesas/r9a09g011gbg-evaluation-board.dts  |  46 +++++++--
+ arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi      | 105 ++++++++++++++++-----
+ arch/arm64/configs/defconfig                       |   8 +-
+ arch/arm64/kernel/head.S                           |   2 +-
+ 4 files changed, 124 insertions(+), 37 deletions(-)
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-index a9288fa..4f21580 100755
+index c998b91..1bd1b1f 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 @@ -14,15 +14,15 @@
- 	compatible = "renesas,evaluation-board", "renesas,r9a09g011gbg";
+        compatible = "renesas,evaluation-board", "renesas,r9a09g011gbg";
  
- 	aliases {
+        aliases {
 -
-+		serial0 = &uart0;
- 	};
++               serial0 = &uart0;
+        };
  
- 	chosen {
--		bootargs = "earlycon=uart,mmio32,0xA4040000,115200n8 console=ttyS0,115200n8 ignore_loglevel vmalloc=384M root=/dev/mmcblk1p3 rootwait rootfstype=ext3 rw; rodata=off";
--		stdout-path = "uart0:115200n8";
-+		bootargs = "earlycon=uart,mmio32,0xA4040000,115200n8 console=ttyS0,115200n8 loglevel=8 vmalloc=384M root=/dev/mmcblk0p2 rootwait rootfstype=ext3 rw";
-+		stdout-path = "serial0:115200n8";
- 	};
+        chosen {
+-               bootargs = "earlycon=uart,mmio32,0xA4040000,115200n8 console=ttyS0,115200n8 ignore_loglevel vmalloc=384M root=/dev/mmcblk1p3 rootwait rootfstype=ext3 rw; rodata=off";
+-               stdout-path = "uart0:115200n8";
++               bootargs = "earlycon=uart,mmio32,0xA4040000,115200n8 console=ttyS0,115200n8 loglevel=8 vmalloc=384M root=/dev/mmcblk0p2 rootwait rootfstype=ext3 rw";
++               stdout-path = "serial0:115200n8";
+        };
  
--	memory@08000000 {
-+	memory@10000000 {
- 		device_type = "memory";
- 		/* first 256MB is reserved for secure area. */
- 		reg = <0x00000000 0x10000000 0x0 0x70000000>;
+-       memory@08000000 {
++       memory@10000000 {
+                device_type = "memory";
+                /* first 256MB is reserved for secure area. */
+                reg = <0x00000000 0x10000000 0x0 0x70000000>;
 @@ -35,18 +35,25 @@
- 		ranges;
+                ranges;
  
- 		/* global autoconfigured region for contiguous allocations */
--		linux,cma@18000000 {
-+		linux,cma@58000000 {
- 			compatible = "shared-dma-pool";
- 			reusable;
--			reg = <0x00000000 0x18000000 0x0 0x10000000>;
-+			reg = <0x00000000 0x58000000 0x0 0x10000000>;
- 			linux,cma-default;
- 		};
+                /* global autoconfigured region for contiguous allocations */
+-               linux,cma@18000000 {
++               linux,cma@58000000 {
+                        compatible = "shared-dma-pool";
+                        reusable;
+-                       reg = <0x00000000 0x18000000 0x0 0x10000000>;
++                       reg = <0x00000000 0x58000000 0x0 0x10000000>;
+                        linux,cma-default;
+                };
 -
-+#if 0
- 		/* device specific region for contiguous allocations */
- 		drp_reserved: linux,CMAtoDRP {
- 			compatible = "shared-dma-pool";
- 			reusable;
--			reg = <0x00000000 0x28000000 0x0 0x08000000>;
-+			reg = <0x00000000 0x68000000 0x0 0x08000000>;
-+		};
+++#if 0
+                /* device specific region for contiguous allocations */
+                drp_reserved: linux,CMAtoDRP {
+                        compatible = "shared-dma-pool";
+                        reusable;
+-                       reg = <0x00000000 0x28000000 0x0 0x08000000>;
++                       reg = <0x00000000 0x68000000 0x0 0x08000000>;
++               };
 +#endif
-+		/* device specific region for contiguous allocations */
-+		mmp_reserved: linux,multimedia {
-+			compatible = "shared-dma-pool";
-+			reusable;
-+			reg = <0x00000000 0x68000000 0x0 0x08000000>;
- 		};
- 	};
++               /* device specific region for contiguous allocations */
++               mmp_reserved: linux,multimedia {
++                       compatible = "shared-dma-pool";
++                       reusable;
++                       reg = <0x00000000 0x68000000 0x0 0x08000000>;
+                };
+        };
  #endif
 @@ -59,6 +66,29 @@
- 	mmngrbuf {
- 		compatible = "renesas,mmngrbuf";
- 	};
+        mmngrbuf {
+                compatible = "renesas,mmngrbuf";
+        };
 +
-+	vcc_sdhi0: regulator-vcc-sdhi0 {
-+		compatible = "regulator-fixed";
++       vcc_sdhi0: regulator-vcc-sdhi0 {
++               compatible = "regulator-fixed";
 +
-+		regulator-name = "SDHI0 Vcc";
-+		regulator-min-microvolt = <3300000>;
-+		regulator-max-microvolt = <3300000>;
-+		regulator-always-on;
-+		regulator-boot-on;
-+	};
++               regulator-name = "SDHI0 Vcc";
++               regulator-min-microvolt = <3300000>;
++               regulator-max-microvolt = <3300000>;
++               regulator-always-on;
++               regulator-boot-on;
++       };
 +
-+	vccq_sdhi0: regulator-vccq-sdhi0 {
-+		compatible = "regulator-gpio";
++       vccq_sdhi0: regulator-vccq-sdhi0 {
++               compatible = "regulator-gpio";
 +
-+		regulator-name = "SDHI0 VccQ";
-+		regulator-min-microvolt = <1800000>;
-+		regulator-max-microvolt = <3300000>;
++               regulator-name = "SDHI0 VccQ";
++               regulator-min-microvolt = <1800000>;
++               regulator-max-microvolt = <3300000>;
 +
-+/*		gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;	*/
-+		gpios-states = <1>;
-+		states = <3300000 1
-+			  1800000 0>;
-+	};
++/*             gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;   */
++               gpios-states = <1>;
++               states = <3300000 1
++                         1800000 0>;
++       };
  };
  
  #if 1 /* used cpg(clock pulse generator) */
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
-index 437c157..e46e139 100755
+index d4f66c1..7aa8b94 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 @@ -18,6 +18,32 @@
- 		ethernet0 = &avb;
- 	};
+                ethernet0 = &avb;
+        };
  
 +#if 0
-+	cluster1_opp: opp_table10 {
-+		compatible = "operating-points-v2";
-+		opp-shared;
++       cluster1_opp: opp_table10 {
++               compatible = "operating-points-v2";
++               opp-shared;
 +
-+		opp@800000000 {
-+			opp-hz = /bits/ 64 <800000000>;
-+			opp-microvolt = <820000>;
-+			clock-latency-ns = <300000>;
-+		};
++               opp@800000000 {
++                       opp-hz = /bits/ 64 <800000000>;
++                       opp-microvolt = <820000>;
++                       clock-latency-ns = <300000>;
++               };
 +
-+		opp@1000000000 {
-+			opp-hz = /bits/ 64 <1000000000>;
-+			opp-microvolt = <820000>;
-+			clock-latency-ns = <300000>;
-+		};
++               opp@1000000000 {
++                       opp-hz = /bits/ 64 <1000000000>;
++                       opp-microvolt = <820000>;
++                       clock-latency-ns = <300000>;
++               };
 +
-+		opp@1200000000 {
-+			opp-hz = /bits/ 64 <1200000000>;
-+			opp-microvolt = <820000>;
-+			clock-latency-ns = <300000>;
-+			opp-suspend;
-+		};
-+	};
++               opp@1200000000 {
++                       opp-hz = /bits/ 64 <1200000000>;
++                       opp-microvolt = <820000>;
++                       clock-latency-ns = <300000>;
++                       opp-suspend;
++               };
++       };
 +#endif/*add*/
 +
  #if 1 /* used cpu */
- 	cpus {
- 		#address-cells = <1>;
+        cpus {
+                #address-cells = <1>;
 @@ -36,7 +62,24 @@
- 			cooling-max-level = <2>;
- 			cpu-idle-states = <&CPU_SLEEP_1>;
- 			clocks = <&cpg CPG_CORE R8A774C0_CLK_Z2>;
+                        cooling-max-level = <2>;
+                        cpu-idle-states = <&CPU_SLEEP_1>;
+                        clocks = <&cpg CPG_CORE R8A774C0_CLK_Z2>;
 +#if 0
-+			operating-points-v2 = <&cluster1_opp>;/*add*/
++                       operating-points-v2 = <&cluster1_opp>;/*add*/
 +#endif
-+		};
++               };
 +
 +#if 0
-+		a53_1: cpu@1 {
-+			compatible = "arm,cortex-a53", "arm,armv8";
-+			reg = <1>;
-+			device_type = "cpu";
-+			#power-domains = <&sysc R8A774C0_PD_CA53_CPU1>;
-+			next-level-cache = <&L2_CA53>;
-+			enable-method = "psci";
-+			clocks = <&cpg CPG_CORE R8A774C0_CLK_Z2>;
-+			operating-points-v2 = <&cluster1_opp>;
-+			cpu-idle-states = <&CPU_SLEEP_1>;
- 		};
++               a53_1: cpu@1 {
++                       compatible = "arm,cortex-a53", "arm,armv8";
++                       reg = <1>;
++                       device_type = "cpu";
++                       #power-domains = <&sysc R8A774C0_PD_CA53_CPU1>;
++                       next-level-cache = <&L2_CA53>;
++                       enable-method = "psci";
++                       clocks = <&cpg CPG_CORE R8A774C0_CLK_Z2>;
++                       operating-points-v2 = <&cluster1_opp>;
++                       cpu-idle-states = <&CPU_SLEEP_1>;
+                };
 +#endif/*add*/
  
- 		L2_CA53: cache-controller-0 {
- 			compatible = "cache";
+                L2_CA53: cache-controller-0 {
+                        compatible = "cache";
 @@ -61,6 +104,28 @@
- 	};
+        };
  #endif
  
 +#if 0
-+	firmware {
-+		optee {
-+			compatible = "linaro,optee-tz";
-+			method = "smc";
-+		};
-+	};
++       firmware {
++               optee {
++                       compatible = "linaro,optee-tz";
++                       method = "smc";
++               };
++       };
 +
-+	pmu_a53 {
-+		compatible = "arm,cortex-a53-pmu";
-+		interrupts-extended = <&gic GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
-+				      <&gic GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
-+		interrupt-affinity = <&a53_0>, <&a53_1>;
-+	};
++       pmu_a53 {
++               compatible = "arm,cortex-a53-pmu";
++               interrupts-extended = <&gic GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
++                                     <&gic GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
++               interrupt-affinity = <&a53_0>, <&a53_1>;
++       };
 +
-+	psci {
-+		compatible = "arm,psci-1.0", "arm,psci-0.2";
-+		method = "smc";
-+	};
++       psci {
++               compatible = "arm,psci-1.0", "arm,psci-0.2";
++               method = "smc";
++       };
 +
 +#endif
 +
  #if 1 /* used cpg(clock pulse generator) */
- 	extal_clk: extal {
- 		compatible = "fixed-clock";
-@@ -120,30 +185,23 @@
+        extal_clk: extal {
+                compatible = "fixed-clock";
+@@ -120,30 +185,22 @@
  #endif
  
  #if 1 /* used sh card boot */
--		/* SDHI Setting */
--		mmc1: sdhi@85000000 {
-+		sdhi0: sd@85000000 {
- 			compatible = "renesas,sdhi-r8a774c0",
- 				     "renesas,rcar-gen3-sdhi";
- 			reg = <0 0x85000000 0 0x2000>;
--			interrupts = <0 170 IRQ_TYPE_LEVEL_LOW>,
--					 <0 171 IRQ_TYPE_LEVEL_LOW>,
--					 <0 101 IRQ_TYPE_LEVEL_HIGH>; /* EXT_GIO_INT[1] */
-+			interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
- 			clocks = <&imclk>;
--			cap-sd-highspeed;
--			cap-mmc-highspeed;
--			sd-uhs-sdr104;
--			sd-uhs-sdr50;
--			mmc-hs200-1_8v;
--			bus-width = <1>;
--			cap-sdio-irq;
--			renesas,mmc-scc-tapnum = <8>;
--			renesas,mmc-scc-tappos=<0x0401>;
- 			max-frequency = <200000000>;
--			#stream-id_cells = <1>;
-+/*			power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>; */
-+/*			resets = <&cpg 314>; */
- 
--			#address-cells = <2>;
--			#size-cells = <2>;
--			ranges;
-+			vmmc-supply = <&vcc_sdhi0>;
-+/*			vqmmc-supply = <&vccq_sdhi0>;*/
-+/*			cd-gpios = <&gpio3 12 GPIO_ACTIVE_LOW>;	*/
-+			bus-width = <4>;
-+			sd-uhs-sdr50;
-+			sd-uhs-sdr104;
-+			status = "okay";
- 		};
+-               /* SDHI Setting */
+-               mmc1: sdhi@85000000 {
++               sdhi0: sd@85000000 {
+                        compatible = "renesas,sdhi-r8a774c0",
+                                     "renesas,rcar-gen3-sdhi";
+                        reg = <0 0x85000000 0 0x2000>;
+-                       interrupts = <0 170 IRQ_TYPE_LEVEL_LOW>,
+-                                        <0 171 IRQ_TYPE_LEVEL_LOW>,
+-                                        <0 101 IRQ_TYPE_LEVEL_HIGH>; /* EXT_GIO_INT[1] */
++                       interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
+                        clocks = <&imclk>;
+-                       cap-sd-highspeed;
+-                       cap-mmc-highspeed;
+-                       sd-uhs-sdr104;
+-                       sd-uhs-sdr50;
+-                       mmc-hs200-1_8v;
+-                       bus-width = <1>;
+-                       cap-sdio-irq;
+-                       renesas,mmc-scc-tapnum = <8>;
+-                       renesas,mmc-scc-tappos=<0x0401>;
+                        max-frequency = <200000000>;
+-                       #stream-id_cells = <1>;
+-
+-                       #address-cells = <2>;
+-                       #size-cells = <2>;
+-                       ranges;
++/*                     power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>; */
++/*                     resets = <&cpg 314>; */
++                       vmmc-supply = <&vcc_sdhi0>;
++/*                     vqmmc-supply = <&vccq_sdhi0>;*/
++/*                     cd-gpios = <&gpio3 12 GPIO_ACTIVE_LOW>; */
++                       bus-width = <4>;
++                       sd-uhs-sdr50;
++                       sd-uhs-sdr104;
++                       status = "okay";
+                };
  #endif
  
-@@ -166,11 +224,10 @@
- 		};
+@@ -166,11 +223,10 @@
+                };
  #endif
  
 -#if 1
--		uart0@a4040000 {
-+		uart0: serial@a4040000 {
- 			compatible = "renesas,rzv2m-16750", "ns16750";
- 			reg = <0x00 0xA4040000 0x00 0x80>;
--			interrupts = <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
-+			interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
- 			clock-frequency = <48000000>;
- 			reg-shift = <2>;
- 			reg-io-width = <4>;
-@@ -185,7 +242,7 @@
- 		uart1@a4040080 {
- 			compatible = "renesas,espada-16750", "ns16750";
- 			reg = <0x00 0xA4040080 0x00 0x80>;
--			interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
-+			interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>;
- 			clock-frequency = <48000000>;
- 			reg-shift = <2>;
- 			reg-io-width = <4>;
-@@ -196,7 +253,7 @@
- 			dma-names = "tx","rx";
+-               uart0@a4040000 {
++               uart0: serial@a4040000 {
+                        compatible = "renesas,rzv2m-16750", "ns16750";
+                        reg = <0x00 0xA4040000 0x00 0x80>;
+-                       interrupts = <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
++                       interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
+                        clock-frequency = <48000000>;
+                        reg-shift = <2>;
+                        reg-io-width = <4>;
+@@ -185,7 +241,7 @@
+                uart1@a4040080 {
+                        compatible = "renesas,espada-16750", "ns16750";
+                        reg = <0x00 0xA4040080 0x00 0x80>;
+-                       interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
++                       interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>;
+                        clock-frequency = <48000000>;
+                        reg-shift = <2>;
+                        reg-io-width = <4>;
+@@ -196,7 +252,7 @@
+                        dma-names = "tx","rx";
  #endif
- 		};
+                };
 -
 +#if 1
- 		avb: ethernet@a3300000 {
- 			compatible = "renesas,etheravb-r8arzv2m",
- 				     "renesas,etheravb-rcar-gen3";
-@@ -249,7 +306,6 @@
- 				interrupts = <21 IRQ_TYPE_LEVEL_LOW>;
- 			};
- 		};
+                avb: ethernet@a3300000 {
+                        compatible = "renesas,etheravb-r8arzv2m",
+                                     "renesas,etheravb-rcar-gen3";
+@@ -249,7 +305,6 @@
+                                interrupts = <21 IRQ_TYPE_LEVEL_LOW>;
+                        };
+                };
 -
  #endif
- 	};
+        };
  
 diff --git a/arch/arm64/configs/defconfig b/arch/arm64/configs/defconfig
-index f65ec25..8f36509 100755
+index ab27f29..5b86659 100644
 --- a/arch/arm64/configs/defconfig
 +++ b/arch/arm64/configs/defconfig
-@@ -53,9 +53,10 @@ CONFIG_PCI_HOST_GENERIC=y
- # CONFIG_HISILICON_ERRATUM_161600802 is not set
- CONFIG_ARM64_VA_BITS_48=y
+@@ -64,11 +64,13 @@ CONFIG_ARM64_VA_BITS_48=y
  CONFIG_SCHED_MC=y
+ CONFIG_PREEMPT=y
+ # CONFIG_KSM is not set
++CONFIG_KSM=y
+ CONFIG_TRANSPARENT_HUGEPAGE=y
+ CONFIG_CMA=y
 -CONFIG_NR_CPUS=8
 +# CONFIG_NR_CPUS=8
 +CONFIG_NR_CPUS=2
@@ -271,34 +287,29 @@ index f65ec25..8f36509 100755
 +CONFIG_KEXEC=y
  CONFIG_CRASH_DUMP=y
  CONFIG_XEN=y
- # CONFIG_ARM64_LSE_ATOMICS is not set
-@@ -75,7 +76,7 @@ CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
- CONFIG_CPUFREQ_DT=y
+ # CONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS is not set
+@@ -358,7 +360,7 @@ CONFIG_NLS_CODEPAGE_437=y
+ CONFIG_NLS_ISO8859_1=y
  # CONFIG_DMIID is not set
  CONFIG_VIRTUALIZATION=y
 -CONFIG_KVM=n
 +CONFIG_KVM=y
- CONFIG_ARM64_CRYPTO=y
- CONFIG_CRYPTO_SHA1_ARM64_CE=y
- CONFIG_CRYPTO_SHA2_ARM64_CE=y
-@@ -86,6 +87,7 @@ CONFIG_JUMP_LABEL=y
- CONFIG_BLK_DEV_INTEGRITY=y
- # CONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS is not set
- # CONFIG_KSM is not set
-+CONFIG_KSM=y
- CONFIG_TRANSPARENT_HUGEPAGE=y
- CONFIG_CMA=y
- CONFIG_NET=y
+ CONFIG_PRINTK_TIME=y
+ CONFIG_DEBUG_INFO=y
+ CONFIG_DEBUG_FS=y
 diff --git a/arch/arm64/kernel/head.S b/arch/arm64/kernel/head.S
-index 9c0dd8a..f29372e 100755
+index bfa434c..82ef029 100644
 --- a/arch/arm64/kernel/head.S
 +++ b/arch/arm64/kernel/head.S
 @@ -114,7 +114,7 @@ pe_header:
  	 *  x19/x20    __primary_switch()         callee preserved temp registers
  	 */
  ENTRY(stext)
--	mov	x0, #0x0f000000
-+	mov	x0, #0x10000000
- //	mov	x4, #0x40007fc0
+-        mov     x0, #0x0f000000
++        mov     x0, #0x10000000
+ //      mov     x4, #0x40007fc0
  	bl	preserve_boot_args
- 	bl	el3_setup			// Drop to EL2, w0=cpu_boot_mode
+         bl      el3_setup                       // Drop to EL2, w0=cpu_boot_mode
+-- 
+2.7.4
+

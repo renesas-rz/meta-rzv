@@ -1,39 +1,52 @@
+From baabee82b6a3a6afc2d45c6aca9fffac48bf0b55 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 15 Sep 2021 16:34:06 +0700
+Subject: [PATCH] pwm_disable_debug_log
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ drivers/pwm/pwm-v2m.c | 7 -------
+ 1 file changed, 7 deletions(-)
+
 diff --git a/drivers/pwm/pwm-v2m.c b/drivers/pwm/pwm-v2m.c
-index 4875981..fcd07c1 100755
+index d622f5a..b865a29 100644
 --- a/drivers/pwm/pwm-v2m.c
 +++ b/drivers/pwm/pwm-v2m.c
 @@ -207,7 +207,6 @@ static int v2m_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
- 		dev_warn(chip->dev, "pwm is already enabled \n");
- 		return 0;
- 	}
--	dev_info(NULL, "%s Cycle setting function is entered.\n",__func__);
- 	div = v2m_pwm_get_clock_division(rp, period_ns);
- 	if (div < 0)
- 		return div;
+                dev_warn(chip->dev, "pwm is already enabled \n");
+                return 0;
+        }
+-       dev_info(NULL, "%s Cycle setting function is entered.\n",__func__);
+        div = v2m_pwm_get_clock_division(rp, period_ns);
+        if (div < 0)
+                return div;
 @@ -223,8 +222,6 @@ static int v2m_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
- 	struct v2m_pwm_chip *rp = to_v2m_pwm_chip(chip);
- 	u32 value;
+        struct v2m_pwm_chip *rp = to_v2m_pwm_chip(chip);
+        u32 value;
  
--	dev_info(NULL, "%s Interrupt enable function is entered.\n",__func__);
+-       dev_info(NULL, "%s Interrupt enable function is entered.\n",__func__);
 -
- 	/* Don't enable the PWM device if V2M_PWMCYC is 0 */
- 	value = v2m_pwm_read(rp, V2M_PWMCYC);
- 	if ((value & V2M_PWMCYC_MASK) == 0)
-@@ -241,8 +238,6 @@ static int v2m_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
- static void v2m_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
+        /* Don't enable the PWM device if V2M_PWMCYC is 0 */
+        value = v2m_pwm_read(rp, V2M_PWMCYC);
+        if ((value & V2M_PWMCYC_MASK) == 0)
+@@ -242,8 +239,6 @@ static void v2m_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
  {
- 	struct v2m_pwm_chip *rp = to_v2m_pwm_chip(chip);
+        struct v2m_pwm_chip *rp = to_v2m_pwm_chip(chip);
+ 
+-       dev_info(NULL, "%s Interrupt disable function is entered.\n",__func__);
 -
--	dev_info(NULL, "%s Interrupt disable function is entered.\n",__func__);
- 	
- 	v2m_pwm_update(rp, V2M_PWMCTR_PWME, 0, V2M_PWMCTR);
- 	v2m_pwm_update(rp, V2M_PWMIEN_PWMEC, 0, V2M_PWMIEN);
-@@ -252,8 +247,6 @@ static void v2m_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
- static int v2m_pwm_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm, enum pwm_polarity polarity)
+        v2m_pwm_update(rp, V2M_PWMCTR_PWME, 0, V2M_PWMCTR);
+        v2m_pwm_update(rp, V2M_PWMIEN_PWMEC, 0, V2M_PWMIEN);
+        wait_time(rp, 6, 9); //leave a write interval of 6 * PCLK + 9 * PWM_CLK
+@@ -253,8 +248,6 @@ static int v2m_pwm_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm, e
  {
- 	struct v2m_pwm_chip *rp = to_v2m_pwm_chip(chip);
+        struct v2m_pwm_chip *rp = to_v2m_pwm_chip(chip);
+ 
+-       dev_info(NULL, "%s polarity function is entered.\n",__func__);
 -
--	dev_info(NULL, "%s polarity function is entered.\n",__func__);
- 	
- 	if (polarity == PWM_POLARITY_NORMAL)
- 	{
+        if (polarity == PWM_POLARITY_NORMAL)
+        {
+                v2m_pwm_update(rp, V2M_PWMCTR_PWMHL, 0, V2M_PWMCTR);
+-- 
+2.7.4
+

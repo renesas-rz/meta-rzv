@@ -1,5 +1,17 @@
+From 784742efef3184c172b38bc2a21b3c9ed6cab0f0 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Tue, 14 Sep 2021 14:25:14 +0700
+Subject: [PATCH] chg-fix-cpg_drv
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi | 10 ++---
+ drivers/clk/renesas/r9a09g011gbg-cpg-mssr.c   | 41 +++++++++---------
+ drivers/clk/renesas/renesas-cpg-clkon.c       | 61 ++++++++++++++++++---------
+ 3 files changed, 65 insertions(+), 47 deletions(-)
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
-index 455ef7e..b47f93b 100755
+index dc71d5c..601bf3c 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 @@ -154,9 +154,7 @@
@@ -30,122 +42,122 @@ index 455ef7e..b47f93b 100755
              clock-names = "timclk";
 -            reset = <&cpg 904>;
 -            reset-names = "tim0";
--            
+-
              status = "disabled";
          };
  
 diff --git a/drivers/clk/renesas/r9a09g011gbg-cpg-mssr.c b/drivers/clk/renesas/r9a09g011gbg-cpg-mssr.c
-index b3ec9bd..557e435 100755
+index 694b6cf..638e228 100644
 --- a/drivers/clk/renesas/r9a09g011gbg-cpg-mssr.c
 +++ b/drivers/clk/renesas/r9a09g011gbg-cpg-mssr.c
 @@ -43,6 +43,7 @@ enum clk_ids {
- 	CLK_PLL2_2,
- 	CLK_PLL2_8,
- 	CLK_PLL2_16,
-+	CLK_PLL6,
- //	CLK_DIV_A,
- 	CLK_DIV_B,
- 	CLK_DIV_D,
+        CLK_PLL2_2,
+        CLK_PLL2_8,
+        CLK_PLL2_16,
++       CLK_PLL6,
+ //     CLK_DIV_A,
+        CLK_DIV_B,
+        CLK_DIV_D,
 @@ -50,12 +51,10 @@ enum clk_ids {
- 	CLK_SEL_B,
- 	CLK_SEL_D,
- 	CLK_SEL_E,
+        CLK_SEL_B,
+        CLK_SEL_D,
+        CLK_SEL_E,
 -#if 0//static defined is disabled
- 	CLK_SEL_CSI0,
- 	CLK_SEL_CSI2,
- 	CLK_SEL_W0,
- 	CLK_SEL_SDI0,
+        CLK_SEL_CSI0,
+        CLK_SEL_CSI2,
+        CLK_SEL_W0,
+        CLK_SEL_SDI0,
 -#endif
- 	/* Module Clocks */
- 	MOD_CLK_BASE
- };
-@@ -70,6 +69,7 @@ static const struct cpg_core_clk r8arzv2m_core_clks[] __initconst = {
- 	DEF_RATE(".pll2_2",    CLK_PLL2_2, 	800*1000*1000),
- 	DEF_RATE(".pll2_8",    CLK_PLL2_8, 	200*1000*1000),
- 	DEF_RATE(".pll2_16",   CLK_PLL2_16, 	100*1000*1000),
-+	DEF_RATE(".pll6",      CLK_PLL6, 	1260*1000*1000),
  
- 	DEF_DIV(".divb",     CLK_DIV_B,          CLK_PLL2,	   4, 
- 		CPG_SYS_DDIV, CPG_SYS_DDIV_WEN_DIVB|CPG_SYS_DDIV_WEN_DIVE|CPG_SYS_DDIV_WEN_DIVD, 
-@@ -95,21 +95,24 @@ static const struct cpg_core_clk r8arzv2m_core_clks[] __initconst = {
- 		CPG_URT_RCLK_SSEL, CPG_URT_RCLK_SSEL_WEN_SELW0,		0),
- 	DEF_STATIC(".selsdi0",     CLK_SEL_SDI0,          CLK_PLL2,	  2, 
- 		CPG_SDIEMM_SSEL,   CPG_SDIEMM_SSEL_WEN_SELSDI,		CPG_SDIEMM_SSEL_SELSDI),
+        /* Module Clocks */
+        MOD_CLK_BASE
+@@ -71,6 +70,7 @@ static const struct cpg_core_clk r8arzv2m_core_clks[] __initconst = {
+        DEF_RATE(".pll2_2",    CLK_PLL2_2,      800*1000*1000),
+        DEF_RATE(".pll2_8",    CLK_PLL2_8,      200*1000*1000),
+        DEF_RATE(".pll2_16",   CLK_PLL2_16,     100*1000*1000),
++       DEF_RATE(".pll6",      CLK_PLL6,        1260*1000*1000),
+ 
+        DEF_DIV(".divb",     CLK_DIV_B,          CLK_PLL2,         4,
+                CPG_SYS_DDIV, CPG_SYS_DDIV_WEN_DIVB|CPG_SYS_DDIV_WEN_DIVE|CPG_SYS_DDIV_WEN_DIVD,
+@@ -96,21 +96,24 @@ static const struct cpg_core_clk r8arzv2m_core_clks[] __initconst = {
+                CPG_URT_RCLK_SSEL, CPG_URT_RCLK_SSEL_WEN_SELW0,         0),
+        DEF_STATIC(".selsdi0",     CLK_SEL_SDI0,          CLK_PLL2,       2,
+                CPG_SDIEMM_SSEL,   CPG_SDIEMM_SSEL_WEN_SELSDI,          CPG_SDIEMM_SSEL_SELSDI),
 +#else
-+	DEF_RATE(".selcsi0",     CLK_SEL_CSI0,	24*1000*1000),
-+	DEF_RATE(".selcsi2",     CLK_SEL_CSI2,	24*1000*1000),
-+	DEF_RATE(".selw",        CLK_SEL_W0,	48*1000*1000),
-+	DEF_RATE(".selsdi0",     CLK_SEL_SDI0,  200*1000*1000),
++       DEF_RATE(".selcsi0",     CLK_SEL_CSI0,  24*1000*1000),
++       DEF_RATE(".selcsi2",     CLK_SEL_CSI2,  24*1000*1000),
++       DEF_RATE(".selw",        CLK_SEL_W0,    48*1000*1000),
++       DEF_RATE(".selsdi0",     CLK_SEL_SDI0,  200*1000*1000),
  #endif
  };
  
  static const struct mssr_mod_clk r8arzv2m_mod_clks[] __initconst = {
- 	DEF_MOD("dmaa_aclk",		111,	CLK_SEL_D,		RST_TYPEB,	1,	7,	4),
+        DEF_MOD("dmaa_aclk",            111,    CLK_SEL_D,              RST_TYPEB,      1,      7,      4),
 -#if 0
- 	DEF_MOD("sdi0_aclk",		300,	CLK_SEL_D,		RST_NON,	0,	0,	0),
- 	DEF_MOD("sdi0_imclk",		301,	CLK_SEL_SDI0,	RST_NON,	0,	0,	0),
- 	DEF_MOD("sdi0_imclk2",		302,	CLK_SEL_SDI0,	RST_TYPEB,	3,	0,	6),
- 	DEF_MOD("sdi0_clk_hs",		303,	CLK_PLL2_2,		RST_NON,	0,	0,	0),
- 	DEF_MOD("emm_aclk",			308,	CLK_SEL_D,		RST_NON,	0,	0,	0),
- 	DEF_MOD("emm_imclk",		309,	CLK_SEL_SDI0,	RST_NON,	0,	0,	0),
--	DEF_MOD("emm_imclk2",		310,	CLK_SEL_SDI0,	RST_TYPEB,	3,	2,	7),
-+	DEF_MOD("emm_imclk2",		310,	CLK_SEL_SDI0,	RST_TYPEB,	3,	2,	8),
- 	DEF_MOD("emm_clk_hs",		311,	CLK_PLL2_2,		RST_NON,	0,	0,	0),
+        DEF_MOD("sdi0_aclk",            300,    CLK_SEL_D,              RST_NON,        0,      0,      0),
+        DEF_MOD("sdi0_imclk",           301,    CLK_SEL_SDI0,   RST_NON,        0,      0,      0),
+        DEF_MOD("sdi0_imclk2",          302,    CLK_SEL_SDI0,   RST_TYPEB,      3,      0,      6),
+        DEF_MOD("sdi0_clk_hs",          303,    CLK_PLL2_2,             RST_NON,        0,      0,      0),
+        DEF_MOD("emm_aclk",                     308,    CLK_SEL_D,              RST_NON,        0,      0,      0),
+        DEF_MOD("emm_imclk",            309,    CLK_SEL_SDI0,   RST_NON,        0,      0,      0),
+-       DEF_MOD("emm_imclk2",           310,    CLK_SEL_SDI0,   RST_TYPEB,      3,      2,      7),
++       DEF_MOD("emm_imclk2",           310,    CLK_SEL_SDI0,   RST_TYPEB,      3,      2,      8),
+        DEF_MOD("emm_clk_hs",           311,    CLK_PLL2_2,             RST_NON,        0,      0,      0),
 -#endif
- 	DEF_MOD("pci_aclk",			400,	CLK_SEL_D,		RST_TYPEA,	3,	8,	0),
- 	DEF_MOD("pci_clk_pmu",		401,	CLK_SEL_D,		RST_TYPEA,	3,	8,	0),
- 	DEF_MOD("pci_apb_clk",		402,	CLK_SEL_E,		RST_NON,	0,	0,	0),
-@@ -137,7 +140,7 @@ static const struct mssr_mod_clk r8arzv2m_mod_clks[] __initconst = {
- 	DEF_MOD("tim_clk29",		1209,	CLK_MAIN_24,	RST_TYPEA,	6,	3,	0,),
- 	DEF_MOD("tim_clk30",		1210,	CLK_MAIN_24,	RST_TYPEA,	6,	3,	0,),
- 	DEF_MOD("tim_clk31",		1211,	CLK_MAIN_24,	RST_TYPEA,	6,	3,	0,),
--	DEF_MOD("pwm_clk8",			1404,	CLK_MAIN,		RST_TYPEB,	6,	5,	0,),
-+	DEF_MOD("pwm_clk8",			1404,	CLK_MAIN,		RST_TYPEB,	6,	5,	23),
- 	DEF_MOD("pwm_clk9",			1405,	CLK_MAIN,		RST_TYPEB,	6,	5,	23),
- 	DEF_MOD("pwm_clk10",		1406,	CLK_MAIN,		RST_TYPEB,	6,	5,	23),
- 	DEF_MOD("pwm_clk11",		1407,	CLK_MAIN,		RST_TYPEB,	6,	5,	23),
-@@ -145,22 +148,21 @@ static const struct mssr_mod_clk r8arzv2m_mod_clks[] __initconst = {
- 	DEF_MOD("pwm_clk13",		1409,	CLK_MAIN,		RST_TYPEB,	6,	5,	23),
- 	DEF_MOD("pwm_clk14",		1410,	CLK_MAIN,		RST_TYPEB,	6,	5,	23),
- 	DEF_MOD("pwm_clk15",		1411,	CLK_MAIN,		RST_TYPEB,	6,	5,	23),
+        DEF_MOD("pci_aclk",                     400,    CLK_SEL_D,              RST_TYPEA,      3,      8,      0),
+        DEF_MOD("pci_clk_pmu",          401,    CLK_SEL_D,              RST_TYPEA,      3,      8,      0),
+        DEF_MOD("pci_apb_clk",          402,    CLK_SEL_E,              RST_NON,        0,      0,      0),
+@@ -138,7 +141,7 @@ static const struct mssr_mod_clk r8arzv2m_mod_clks[] __initconst = {
+        DEF_MOD("tim_clk29",            1209,   CLK_MAIN_24,    RST_TYPEA,      6,      3,      0,),
+        DEF_MOD("tim_clk30",            1210,   CLK_MAIN_24,    RST_TYPEA,      6,      3,      0,),
+        DEF_MOD("tim_clk31",            1211,   CLK_MAIN_24,    RST_TYPEA,      6,      3,      0,),
+-       DEF_MOD("pwm_clk8",                     1404,   CLK_MAIN,               RST_TYPEB,      6,      5,      0,),
++       DEF_MOD("pwm_clk8",                     1404,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
+        DEF_MOD("pwm_clk9",                     1405,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
+        DEF_MOD("pwm_clk10",            1406,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
+        DEF_MOD("pwm_clk11",            1407,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
+@@ -146,22 +149,21 @@ static const struct mssr_mod_clk r8arzv2m_mod_clks[] __initconst = {
+        DEF_MOD("pwm_clk13",            1409,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
+        DEF_MOD("pwm_clk14",            1410,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
+        DEF_MOD("pwm_clk15",            1411,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
 -#if 0 //static defined is disabled
- 	DEF_MOD("urt_pclk",			1504,	CLK_SEL_E,		RST_TYPEB,	6,	10,	26),
--	DEF_MOD("urt_clk0",			1505,	CLK_SEL_W0,		RST_NON,	0,	0,	0),
--	DEF_MOD("csi_clk0",			1508,	CLK_SEL_CSI0,	RST_NON,	0,	0,	0),
-+	DEF_MOD("urt_clk0",			1505,	CLK_SEL_W0,		RST_TYPEB,	6,	10,	26),
- 	DEF_MOD("csi_clk2",			1510,	CLK_SEL_CSI2,	RST_NON,	0,	0,	0),
+        DEF_MOD("urt_pclk",                     1504,   CLK_SEL_E,              RST_TYPEB,      6,      10,     26),
+-       DEF_MOD("urt_clk0",                     1505,   CLK_SEL_W0,             RST_NON,        0,      0,      0),
+-       DEF_MOD("csi_clk0",                     1508,   CLK_SEL_CSI0,   RST_NON,        0,      0,      0),
++       DEF_MOD("urt_clk0",                     1505,   CLK_SEL_W0,             RST_TYPEB,      6,      10,     26),
+        DEF_MOD("csi_clk2",                     1510,   CLK_SEL_CSI2,   RST_NON,        0,      0,      0),
 -#endif
 -#if 0
--	DEF_MOD("drpa_aclk",		2000,	CLK_SEL_B,		RST_NON,	0,	0,	14),
-+	DEF_MOD("drpa_aclk",		2000,	CLK_SEL_B,		RST_NON,	0,	0,	0),
- 	DEF_MOD("drpa_dclk",		2001,	CLK_PLL6,		RST_NON,	0,	0,	0),
--	DEF_MOD("drpa_initclk",		2002,	CLK_MAIN,		RST_TYPEB,	9,	0,	0),
+-       DEF_MOD("drpa_aclk",            2000,   CLK_SEL_B,              RST_NON,        0,      0,      14),
++       DEF_MOD("drpa_aclk",            2000,   CLK_SEL_B,              RST_NON,        0,      0,      0),
+        DEF_MOD("drpa_dclk",            2001,   CLK_PLL6,               RST_NON,        0,      0,      0),
+-       DEF_MOD("drpa_initclk",         2002,   CLK_MAIN,               RST_TYPEB,      9,      0,      0),
 -#endif
-+	DEF_MOD("drpa_initclk",		2002,	CLK_MAIN,		RST_TYPEB,	9,	0,	14),
++       DEF_MOD("drpa_initclk",         2002,   CLK_MAIN,               RST_TYPEB,      9,      0,      14),
  };
  
  static const unsigned int r8arzv2m_crit_mod_clks[] __initconst = {
--//	MOD_CLK_ID(408),	/* INTC-AP (GIC) */
--	000
-+	
-+	MOD_CLK_ID(404),	/* usb_aclk_h */
-+	MOD_CLK_ID(405),	/* usb_aclk_p */
-+	MOD_CLK_ID(406),	/* usb_pclk */
-+	MOD_CLK_ID(408),	/* eth0_clk_axi */
-+	MOD_CLK_ID(409),	/* eth0_clk_gptp_extern */
+-//     MOD_CLK_ID(408),        /* INTC-AP (GIC) */
+-       000
++
++       MOD_CLK_ID(404),        /* usb_aclk_h */
++       MOD_CLK_ID(405),        /* usb_aclk_p */
++       MOD_CLK_ID(406),        /* usb_pclk */
++       MOD_CLK_ID(408),        /* eth0_clk_axi */
++       MOD_CLK_ID(409),        /* eth0_clk_gptp_extern */
  };
  
  /*
-@@ -187,7 +189,7 @@ int32_t r8arzv2m_cpg_setClockCtrl(void __iomem *base, uint8_t reg_num, uint16_t
+@@ -188,7 +190,7 @@ int32_t r8arzv2m_cpg_setClockCtrl(void __iomem *base, uint8_t reg_num, uint16_t
      uint32_t value;
  
      if (reg_num < CPG_CLK_ON_REG_MIN || CPG_CLK_ON_REG_MAX < reg_num)
 -{
-+	{
++       {
          return -EINVAL;
      }
  
-@@ -206,7 +208,7 @@ int32_t r8arzv2m_cpg_getClockCtrl(void __iomem *base, uint8_t reg_num, uint16_t
+@@ -207,7 +209,7 @@ int32_t r8arzv2m_cpg_getClockCtrl(void __iomem *base, uint8_t reg_num, uint16_t
      void __iomem *offset = base + CPG_CLK_ON1;
      uint32_t value;
  
@@ -154,18 +166,18 @@ index b3ec9bd..557e435 100755
      {
          return 0xFFFFFFFF;
      }
-@@ -216,7 +218,8 @@ int32_t r8arzv2m_cpg_getClockCtrl(void __iomem *base, uint8_t reg_num, uint16_t
- 	value = readl(offset);
+@@ -217,7 +219,8 @@ int32_t r8arzv2m_cpg_getClockCtrl(void __iomem *base, uint8_t reg_num, uint16_t
+        value = readl(offset);
  
- 	value = value & target;
+        value = value & target;
 -    return value;
 +
-+	return value;
++       return value;
  }
  
  int32_t CPG_SetResetCtrl(void __iomem *base, uint8_t reg_num, uint16_t target, uint16_t set_value)
 diff --git a/drivers/clk/renesas/renesas-cpg-clkon.c b/drivers/clk/renesas/renesas-cpg-clkon.c
-index 86a37a4..6427a69 100755
+index 611a64a..caa0043 100644
 --- a/drivers/clk/renesas/renesas-cpg-clkon.c
 +++ b/drivers/clk/renesas/renesas-cpg-clkon.c
 @@ -12,7 +12,6 @@
@@ -182,108 +194,111 @@ index 86a37a4..6427a69 100755
  
 +static int cpg_mstp_clock_is_enabled(struct clk_hw *hw)
 +{
-+	struct mstp_clock *clock = to_mstp_clock(hw);
-+	struct cpg_mssr_priv *priv = clock->priv;
-+	unsigned int no = clock->index / 100;
-+	unsigned int bit = clock->index % 100;
-+	u32 value;
-+	
-+	value = r8arzv2m_cpg_getClockCtrl(priv->base,no,BIT(bit));
-+	
-+	if(value == 0xFFFFFFFF){
-+		return 0;
-+	}
-+	
-+	value = value >> bit;
++       struct mstp_clock *clock = to_mstp_clock(hw);
++       struct cpg_mssr_priv *priv = clock->priv;
++       unsigned int no = clock->index / 100;
++       unsigned int bit = clock->index % 100;
++       u32 value;
 +
-+	return value;
++       value = r8arzv2m_cpg_getClockCtrl(priv->base,no,BIT(bit));
++
++       if(value == 0xFFFFFFFF){
++               return 0;
++       }
++
++       value = value >> bit;
++
++       return value;
 +}
 +
  static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
  {
- 	struct mstp_clock *clock = to_mstp_clock(hw);
-@@ -114,9 +132,20 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
- 	unsigned int i;
- 	u32 value;
+        struct mstp_clock *clock = to_mstp_clock(hw);
+@@ -114,10 +132,21 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
+        unsigned int i;
+        u32 value;
  
--	dev_dbg(dev, "MSTP %u%02u/%pC %s\n", no, bit, hw->clk,
-+	dev_dbg(dev, "CLOCKON %u%02u/%pC %s\n", no, bit, hw->clk,
- 		enable ? "ON" : "OFF");
-+	
-+	value = cpg_mstp_clock_is_enabled(hw);
-+	if((0 != value) && enable){
+-       dev_dbg(dev, "MSTP %u%02u/%pC %s\n", no, bit, hw->clk,
++       dev_dbg(dev, "CLOCKON %u%02u/%pC %s\n", no, bit, hw->clk,
+                enable ? "ON" : "OFF");
 +
-+		dev_dbg(dev, "%s is enabled",hw->init->name);
-+		return 0;
-+	}
-+	
- 	spin_lock_irqsave(&priv->rmw_lock, flags);
-+	
-+	dev_info(dev, "CLOCK SET %u%02u/%pC %s\n", no, bit, hw->clk,
-+		enable ? "is enabled" : "is disabled");
++       value = cpg_mstp_clock_is_enabled(hw);
++       if((0 != value) && enable){
++
++               dev_dbg(dev, "%s is enabled",hw->init->name);
++               return 0;
++       }
++
+        spin_lock_irqsave(&priv->rmw_lock, flags);
  
- 	if(clock->type == RST_TYPEA){
- 		CPG_SetResetCtrl(priv->base,clock->reset_no,BIT(clock->reset_bit),0);
++       dev_info(dev, "CLOCK SET %u%02u/%pC %s\n", no, bit, hw->clk,
++               enable ? "is enabled" : "is disabled");
++
+        if(clock->type == RST_TYPEA){
+                CPG_SetResetCtrl(priv->base,clock->reset_no,BIT(clock->reset_bit),0);
+                r8arzv2m_cpg_setClockCtrl(priv->base,no,BIT(bit),0);
 @@ -159,25 +188,6 @@ static void cpg_mstp_clock_disable(struct clk_hw *hw)
- 	cpg_mstp_clock_endisable(hw, false);
+        cpg_mstp_clock_endisable(hw, false);
  }
  
 -static int cpg_mstp_clock_is_enabled(struct clk_hw *hw)
 -{
--	struct mstp_clock *clock = to_mstp_clock(hw);
--	struct cpg_mssr_priv *priv = clock->priv;
--	unsigned int no = clock->index / 100;
--	unsigned int bit = clock->index % 100;
--	u32 value;
--	
--	value = r8arzv2m_cpg_getClockCtrl(priv->base,no,BIT(bit));
--	
--	if(value == 0xFFFFFFFF){
--		return 0;
--	}
--	
--	value = value >> bit;
+-       struct mstp_clock *clock = to_mstp_clock(hw);
+-       struct cpg_mssr_priv *priv = clock->priv;
+-       unsigned int no = clock->index / 100;
+-       unsigned int bit = clock->index % 100;
+-       u32 value;
 -
--	return 0;//[TODO]return value;
+-       value = r8arzv2m_cpg_getClockCtrl(priv->base,no,BIT(bit));
+-
+-       if(value == 0xFFFFFFFF){
+-               return 0;
+-       }
+-
+-       value = value >> bit;
+-
+-       return 0;//[TODO]return value;
 -}
 -
  static const struct clk_ops cpg_mstp_clock_ops = {
- 	.enable = cpg_mstp_clock_enable,
- 	.disable = cpg_mstp_clock_disable,
+        .enable = cpg_mstp_clock_enable,
+        .disable = cpg_mstp_clock_disable,
 @@ -223,6 +233,7 @@ struct clk *cpg_mssr_clk_src_twocell_get(struct of_phandle_args *clkspec,
- 		dev_dbg(dev, "clock (%u, %u) is %pC at %lu Hz\n",
- 			clkspec->args[0], clkspec->args[1], clk,
- 			clk_get_rate(clk));
+                dev_dbg(dev, "clock (%u, %u) is %pC at %lu Hz\n",
+                        clkspec->args[0], clkspec->args[1], clk,
+                        clk_get_rate(clk));
 +
- 	return clk;
+        return clk;
  }
  
 @@ -310,6 +321,7 @@ static void __init cpg_mssr_register_core_clk(const struct cpg_core_clk *core,
- 		goto fail;
+                goto fail;
  
- 	dev_dbg(dev, "Core clock %pC at %lu Hz\n", clk, clk_get_rate(clk));
+        dev_dbg(dev, "Core clock %pC at %lu Hz\n", clk, clk_get_rate(clk));
 +
- 	priv->clks[id] = clk;
- 	return;
+        priv->clks[id] = clk;
+        return;
  
 @@ -370,12 +382,19 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
- 	clock->index = id - priv->num_core_clks;
- 	clock->priv = priv;
- 	clock->hw.init = &init;
-+	clock->type = mod->type;
-+	clock->reset_no = mod->reset_no;
-+	clock->reset_bit = mod->reset_bit;
-+	clock->reset_msk = mod->reset_msk;
+        clock->index = id - priv->num_core_clks;
+        clock->priv = priv;
+        clock->hw.init = &init;
++       clock->type = mod->type;
++       clock->reset_no = mod->reset_no;
++       clock->reset_bit = mod->reset_bit;
++       clock->reset_msk = mod->reset_msk;
  
- 	clk = clk_register(NULL, &clock->hw);
- 	if (IS_ERR(clk))
- 		goto fail;
--
-+	
- 	dev_dbg(dev, "Module clock %pC at %lu Hz\n", clk, clk_get_rate(clk));
+        clk = clk_register(NULL, &clock->hw);
+        if (IS_ERR(clk))
+                goto fail;
+ 
+        dev_dbg(dev, "Module clock %pC at %lu Hz\n", clk, clk_get_rate(clk));
 +
-+	clk_prepare(clk);
-+	clk_enable(clk);
- 	priv->clks[id] = clk;
- 	priv->smstpcr_saved[clock->index / 100].mask |= BIT(clock->index % 100); //[TODO:saved module stop manage]
- 	return;
++       clk_prepare(clk);
++       clk_enable(clk);
+        priv->clks[id] = clk;
+        priv->smstpcr_saved[clock->index / 100].mask |= BIT(clock->index % 100); //[TODO:saved module stop manage]
+        return;
+-- 
+2.7.4
+

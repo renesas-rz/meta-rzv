@@ -1,5 +1,15 @@
+From 66b2de5758a0dbb40b4ae3bcada35f48945b257e Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 15 Sep 2021 08:20:36 +0700
+Subject: [PATCH] Update-available-devices-evaluation-board
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ .../dts/renesas/r9a09g011gbg-evaluation-board.dts  | 65 ++++++++++++++--------
+ 1 file changed, 41 insertions(+), 24 deletions(-)
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-index 596da09..d13e5e2 100755
+index 0af881f..24dbc83 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 @@ -13,6 +13,13 @@
@@ -16,7 +26,7 @@ index 596da09..d13e5e2 100755
      aliases {
          serial0 = &uart0;
      };
-@@ -152,9 +159,16 @@
+@@ -153,7 +160,17 @@
              };
          };
      };
@@ -24,17 +34,17 @@ index 596da09..d13e5e2 100755
 +       compatible = "idt,9fgv0241";
 +       reg = <0x68>;
 +    };
- };
- 
--
++};
++
 +&i2c2 {
 +    clock-frequency = <100000>;
 +    status = "okay";
-+};
- 
+ };
++
  &uart0 {
      status = "okay";
-@@ -172,98 +186,98 @@
+ };
+@@ -170,100 +187,100 @@
      status = "okay";
  };
  
@@ -153,7 +163,12 @@ index 596da09..d13e5e2 100755
      status = "okay";
  };
  
+ 
 -&tim31 {
 +&tim23 {
      status = "okay";
  };
+ 
+-- 
+2.7.4
+

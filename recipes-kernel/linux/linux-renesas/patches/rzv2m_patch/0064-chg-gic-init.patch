@@ -1,3 +1,14 @@
+From d43c21b8e910fefd16f69cfa87030415e4454235 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Fri, 17 Sep 2021 10:16:56 +0700
+Subject: [PATCH] chg-gic-init
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ drivers/irqchip/irq-gic-common.c | 11 -----------
+ drivers/irqchip/irq-gic.c        | 15 +++------------
+ 2 files changed, 3 insertions(+), 23 deletions(-)
+
 diff --git a/drivers/irqchip/irq-gic-common.c b/drivers/irqchip/irq-gic-common.c
 index 01e673c..7772633 100644
 --- a/drivers/irqchip/irq-gic-common.c
@@ -21,7 +32,7 @@ index 01e673c..7772633 100644
  		sync_access();
  }
 diff --git a/drivers/irqchip/irq-gic.c b/drivers/irqchip/irq-gic.c
-index a21608b..9fc4e7a 100644
+index a21608b..13f3c21 100644
 --- a/drivers/irqchip/irq-gic.c
 +++ b/drivers/irqchip/irq-gic.c
 @@ -491,17 +491,6 @@ static void gic_dist_init(struct gic_chip_data *gic)
@@ -42,15 +53,17 @@ index a21608b..9fc4e7a 100644
  	/*
  	 * Set all global interrupts to CPU #0 and #1 for RZ/V2M.
  	 */
-@@ -514,7 +503,10 @@ static void gic_dist_init(struct gic_chip_data *gic)
+@@ -514,7 +503,9 @@ static void gic_dist_init(struct gic_chip_data *gic)
      
  	gic_dist_config(base, gic_irqs, NULL);
  
 -	writel_relaxed(GICD_ENABLE, base + GIC_DIST_CTRL);
-+	
-+	if (0 == (readl_relaxed(base + GIC_DIST_CTRL)&GICD_ENABLE)) {
-+ 		writel_relaxed(GICD_ENABLE, base + GIC_DIST_CTRL);
-+	}
++       if (0 == (readl_relaxed(base + GIC_DIST_CTRL)&GICD_ENABLE)) {
++               writel_relaxed(GICD_ENABLE, base + GIC_DIST_CTRL);
++       }
  }
  
  static int gic_cpu_init(struct gic_chip_data *gic)
+-- 
+2.7.4
+

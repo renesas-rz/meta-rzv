@@ -1,14 +1,25 @@
+From 81398fc21cb64ab82bc926b034deeda10f854d48 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Mon, 9 Aug 2021 16:19:22 +0700
+Subject: [PATCH] mmc renesas rzv2m
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ drivers/mmc/host/renesas_sdhi_internal_dmac.c | 1 +
+ 1 file changed, 1 insertion(+)
+
 diff --git a/drivers/mmc/host/renesas_sdhi_internal_dmac.c b/drivers/mmc/host/renesas_sdhi_internal_dmac.c
-old mode 100644
-new mode 100755
-index 0129837..39fff8a
+index 97f5f48..86dbf33 100644
 --- a/drivers/mmc/host/renesas_sdhi_internal_dmac.c
 +++ b/drivers/mmc/host/renesas_sdhi_internal_dmac.c
-@@ -300,6 +300,7 @@ static const struct soc_device_attribute gen3_soc_whitelist[] = {
- 	/* generic ones */
- 	{ .soc_id = "r8a774a1" },
+@@ -287,6 +287,7 @@ static const struct soc_device_attribute gen3_soc_whitelist[] = {
+ 	{ .soc_id = "r8a774b1" },
  	{ .soc_id = "r8a774c0" },
+ 	{ .soc_id = "r8a774e1" },
 +	{ .soc_id = "r8arzv2m" },
  	{ .soc_id = "r8a7795" },
  	{ .soc_id = "r8a7796" },
  	{ .soc_id = "r8a77965" },
+-- 
+2.7.4
+

@@ -1,5 +1,18 @@
+From 8ca43b8bd70292b07cf4141795b825d858898f57 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 15 Sep 2021 16:45:08 +0700
+Subject: [PATCH] remake-devicetree
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ .../dts/renesas/r9a09g011gbg-evaluation-board.dts  | 34 ++--------------------
+ arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi      | 24 +--------------
+ drivers/mmc/host/renesas_sdhi_internal_dmac.c      |  2 +-
+ drivers/soc/renesas/renesas-soc.c                  |  8 ++---
+ 4 files changed, 8 insertions(+), 60 deletions(-)
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-index 7dc63e3..e37040b 100755
+index d45395d..114f38c 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 @@ -11,7 +11,7 @@
@@ -11,8 +24,8 @@ index 7dc63e3..e37040b 100755
  
      aliases {
          serial0 = &uart0;
-@@ -118,16 +118,6 @@
- 	companion = <&xhci0>;
+@@ -119,16 +119,6 @@
+        companion = <&xhci0>;
      status = "okay";
      renesas,usb-role-switch;
 -
@@ -28,14 +41,14 @@ index 7dc63e3..e37040b 100755
  };
  
  &pfc {
-@@ -154,27 +144,8 @@
+@@ -154,27 +144,7 @@
  &i2c0 {
      clock-frequency = <100000>;
      status = "okay";
 -    hd3ss3220@47 {
 -        compatible = "ti,hd3ss3220";
 -        reg = <0x47>;
- 
+-
 -        usb_con: connector {
 -            compatible = "usb-c-connector";
 -            label = "USB-C";
@@ -58,7 +71,7 @@ index 7dc63e3..e37040b 100755
         reg = <0x68>;
      };
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
-index 99e5b4b..ecb29c7 100755
+index f95b156..5c7569b 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 @@ -69,27 +69,11 @@
@@ -135,53 +148,56 @@ index 99e5b4b..ecb29c7 100755
              compatible = "renesas,rzv2m-csi";
              reg = <0x00 0xa4020280 0x0 0x80>;
              interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
--	    /* clocks = <&cpg CPG_MOD 1513>; */
+-           /* clocks = <&cpg CPG_MOD 1513>; */
              clocks = <&csi_clk>;
              #address-cells = <1>;
              #size-cells = <0>;
 diff --git a/drivers/mmc/host/renesas_sdhi_internal_dmac.c b/drivers/mmc/host/renesas_sdhi_internal_dmac.c
-index d5c1dab..3b805fa 100755
+index 7ff736c..e7a25dc 100644
 --- a/drivers/mmc/host/renesas_sdhi_internal_dmac.c
 +++ b/drivers/mmc/host/renesas_sdhi_internal_dmac.c
-@@ -302,7 +302,7 @@ static const struct soc_device_attribute gen3_soc_whitelist[] = {
- 	{ .soc_id = "r8a774a1" },
+@@ -288,7 +288,7 @@ static const struct soc_device_attribute gen3_soc_whitelist[] = {
  	{ .soc_id = "r8a774b1" },
  	{ .soc_id = "r8a774c0" },
+ 	{ .soc_id = "r8a774e1" },
 -	{ .soc_id = "r8arzv2m" },
-+	{ .soc_id = "r9a09g011gbg" },
++        { .soc_id = "r9a09g011gbg" },
  	{ .soc_id = "r8a7795" },
  	{ .soc_id = "r8a7796" },
  	{ .soc_id = "r8a77965" },
 diff --git a/drivers/soc/renesas/renesas-soc.c b/drivers/soc/renesas/renesas-soc.c
-index fdc9ed9..a3bda00 100755
+index f36ec95..ec89892 100644
 --- a/drivers/soc/renesas/renesas-soc.c
 +++ b/drivers/soc/renesas/renesas-soc.c
-@@ -61,7 +61,7 @@ static const struct renesas_family fam_rzg2 __initconst __maybe_unused = {
+@@ -63,7 +63,7 @@ static const struct renesas_family fam_rzg2 __initconst __maybe_unused = {
  };
  
  static const struct renesas_family fam_rzv2 __initconst __maybe_unused = {
--	.name	= "RZ/V2",
-+	.name	= "RZ/V2M",
- 	.reg	= 0xA3F03104,		/* SYS (Version Register) */
+-       .name   = "RZ/V2",
++       .name   = "RZ/V2M",
+        .reg    = 0xA3F03104,           /* SYS (Version Register) */
  };
  
-@@ -245,7 +245,7 @@ static const struct of_device_id renesas_socs[] __initconst = {
- 	{ .compatible = "renesas,r8a774c0",	.data = &soc_rz_g2e },
+@@ -258,7 +258,7 @@ static const struct of_device_id renesas_socs[] __initconst = {
+ 	{ .compatible = "renesas,r8a774e1",	.data = &soc_rz_g2h },
  #endif
  #ifdef CONFIG_ARCH_R9A09G011GBG
--	{ .compatible = "renesas,r8arzv2m",	.data = &soc_rz_v2m },
-+	{ .compatible = "renesas,r9a09g011gbg",	.data = &soc_rz_v2m },
+-       { .compatible = "renesas,r8arzv2m",     .data = &soc_rz_v2m },
++       { .compatible = "renesas,r9a09g011gbg", .data = &soc_rz_v2m },
  #endif
  #ifdef CONFIG_ARCH_R8A7778
  	{ .compatible = "renesas,r8a7778",	.data = &soc_rcar_m1a },
-@@ -361,8 +361,8 @@ static int __init renesas_soc_init(void)
- 					   product & 0xf);
+@@ -373,8 +373,8 @@ static int __init renesas_soc_init(void)
+                                           product & 0xf);
  #endif
  
 -	pr_info("Detected Renesas %s %s %s\n", soc_dev_attr->family,
 -		soc_dev_attr->soc_id, soc_dev_attr->revision ?: "");
-+	pr_info("Detected Renesas %s (%s)\n", soc_dev_attr->family,
-+		soc_dev_attr->soc_id ?: "");
++        pr_info("Detected Renesas %s (%s)\n", soc_dev_attr->family,
++                soc_dev_attr->soc_id ?: "");
  
  	soc_dev = soc_device_register(soc_dev_attr);
  	if (IS_ERR(soc_dev)) {
+-- 
+2.7.4
+

@@ -2,16 +2,15 @@ DESCRIPTION = "Linux kernel for the RZG2 based board"
 
 require recipes-kernel/linux/linux-yocto.inc
 require include/cas-control.inc
-require include/ecc-control.inc
 require include/docker-control.inc
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/:"
-COMPATIBLE_MACHINE = "ek874|hihope-rzg2m|hihope-rzg2n|rzv2m"
+COMPATIBLE_MACHINE = "ek874|hihope-rzg2m|hihope-rzg2n|hihope-rzg2h|rzv2m"
 
 KERNEL_URL = " \
     git://git.kernel.org/pub/scm/linux/kernel/git/cip/linux-cip.git"
 BRANCH = "linux-4.19.y-cip"
-SRCREV = "5b7dee96a2b4fffe481be81edc72fd104ed047ab"
+SRCREV = "ae1fef4b10f29edc4ab75ef9be40f334997b5646"
 
 SRC_URI = "${KERNEL_URL};protocol=https;nocheckout=1;branch=${BRANCH}"
 
@@ -20,7 +19,6 @@ SRC_URI_append += "\
 "
 
 SRC_URI_append_r9a09g011gbg += "\
-  ${@base_conditional("ECC_FULL", "1", " file://patches/option_patch/0001-ARM64-DTS-cat874-reduce-mem-to-960M-when-enable-DRAM.patch ", "",d)} \
   file://patches/rzv2m_patch/0000-Makefile-rzv2m.patch \
   file://patches/rzv2m_patch/0000-headS-rzv2m.patch \
   file://patches/rzv2m_patch/0000-ptrace-rzv2m.patch \
@@ -65,7 +63,7 @@ SRC_URI_append_r9a09g011gbg += "\
   file://patches/rzv2m_patch/0044-modified-gicd-init.patch \
   file://patches/rzv2m_patch/0045-modified-gic-set-affinity.patch \
   file://patches/rzv2m_patch/0046-add-usbrole-setting.patch \
-  file://patches/rzv2m_patch/0047_chg_cpg_clock_teble.patch \
+  file://patches/rzv2m_patch/0047_chg_cpg_clock_table.patch \
   file://patches/rzv2m_patch/0048-add-switching-voltage-sd.patch \
   file://patches/rzv2m_patch/0049-enable-usb-peripheral.patch \
   file://patches/rzv2m_patch/0050-add-switching-voltage-emmc.patch \
@@ -84,10 +82,25 @@ SRC_URI_append_r9a09g011gbg += "\
   file://patches/rzv2m_patch/0063-apply-ddr-4gb.patch \
   file://patches/rzv2m_patch/0064-chg-gic-init.patch \
   file://patches/rzv2m_patch/0065-fixed-bug-usb-peripheral-driver.patch \
+  file://patches/rzv2m_patch/0066-Enable-uinput-mousedev-kernel-module.patch \
+  file://patches/rzv2m_patch/0067-change_adress_map.patch \
+  file://patches/rzv2m_patch/0068-extended-34bit-dma-mask-usb.patch \
+  file://patches/rzv2m_patch/0069-extended-34bit-dma-mask-ravb.patch \
+  file://patches/rzv2m_patch/0070-extended-34bit-dma-mask-mmc.patch \
+  file://patches/rzv2m_patch/0071-extended-34bit-dma-mask-udmabuf.patch \
+  file://patches/rzv2m_patch/0072-Fix-issue-when-detecting-the-USB-3.1-capability.patch \
+  file://patches/rzv2m_patch/0073-Add-setting-the-pin-configuration-for-i2c-2.patch \
+  file://patches/rzv2m_patch/0074-Modify-i2c-clocks-setting.patch \
+  file://patches/rzv2m_patch/0075-bug-fixed-pmu-interrupt.patch \
+  file://patches/rzv2m_patch/0076-modified-cpu-idle-thread.patch \
+  file://patches/rzv2m_patch/0077-modified-memorymap-for-drpai.patch \
+  file://patches/rzv2m_patch/0078-Add-setting-for-the-uvc.patch \
+  file://patches/rzv2m_patch/0079-modified-rammap-area-rzv2m-periferal.patch \
+  file://patches/rzv2m_patch/0080-modified-endpoint-num-rzv2m-periferal.patch \
 "
 
 LIC_FILES_CHKSUM = "file://COPYING;md5=bbea815ee2795b2f4230826c0c6b8814"
-LINUX_VERSION ?= "4.19.56-cip5"
+LINUX_VERSION ?= "4.19.165-cip41"
 
 PV = "${LINUX_VERSION}+git${SRCPV}"
 PR = "r1"
@@ -118,9 +131,13 @@ SRC_URI_append = " \
 REGULATORY_DB = "https://git.kernel.org/pub/scm/linux/kernel/git/sforshee/wireless-regdb.git/plain/regulatory.db?h=master-2019-06-03;md5sum=ce7cdefff7ba0223de999c9c18c2ff6f;downloadfilename=regulatory.db"
 REGULATORY_DB_P7S = "https://git.kernel.org/pub/scm/linux/kernel/git/sforshee/wireless-regdb.git/plain/regulatory.db.p7s?h=master-2019-06-03;md5sum=489924336479385e2c35c21d10eb3ca2;downloadfilename=regulatory.db.p7s"
 
+# Install Bluetooth firmware to rootfs
+BLUETOOTH_FW = " https://git.ti.com/cgit/wilink8-bt/ti-bt-firmware/plain/TIInit_11.8.32.bts;md5sum=665b7c25be21933acc30dda44cfcace6;downloadfilename=TIInit_11.8.32.bts"
+
 SRC_URI_append = " \
     ${REGULATORY_DB} \
     ${REGULATORY_DB_P7S} \
+    ${BLUETOOTH_FW} \
     file://wifi.cfg \
     file://bluetooth.cfg \
 "
@@ -132,6 +149,8 @@ SRC_URI_append = "\
 do_download_firmware () {
     install -m 755 ${WORKDIR}/r8a779x_usb3_v*.dlmem ${STAGING_KERNEL_DIR}/firmware
     install -m 755 ${WORKDIR}/regulatory* ${STAGING_KERNEL_DIR}/firmware
+    mkdir -p ${STAGING_KERNEL_DIR}/firmware/ti-connectivity
+    install -m 755 ${WORKDIR}/TIInit_11.8.32.bts ${STAGING_KERNEL_DIR}/firmware/ti-connectivity
 }
 
 do_kernel_metadata_af_patch() {

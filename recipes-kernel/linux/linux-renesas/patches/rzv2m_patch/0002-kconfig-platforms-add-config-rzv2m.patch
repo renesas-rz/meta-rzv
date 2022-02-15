@@ -1,19 +1,30 @@
+From b752876a84ffc4f4951519b456774fe3ce207aba Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Mon, 9 Aug 2021 14:24:50 +0700
+Subject: [PATCH] kconfig platforms add config rzv2m
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ arch/arm64/Kconfig.platforms | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
 diff --git a/arch/arm64/Kconfig.platforms b/arch/arm64/Kconfig.platforms
-old mode 100644
-new mode 100755
-index b624cce..14a68bb
+index 31dbbad..b9b3fce4 100644
 --- a/arch/arm64/Kconfig.platforms
 +++ b/arch/arm64/Kconfig.platforms
-@@ -207,6 +207,12 @@ config ARCH_R8A774C0
+@@ -220,6 +220,12 @@ config ARCH_R8A774E1
  	help
- 	  This enables support for the Renesas RZ/G2E SoC.
+ 	  This enables support for the Renesas RZ/G2H SoC.
  
 +config ARCH_R9A09G011GBG
-+	bool "Renesas RZ/V2M SoC Platform"
-+	depends on ARCH_RENESAS
-+	help
-+	  This enables support for the Renesas RZ/V2M SoC.
++       bool "Renesas RZ/V2M SoC Platform"
++       depends on ARCH_RENESAS
++       help
++         This enables support for the Renesas RZ/V2M SoC.
 +
  config ARCH_R8A7795
  	bool "Renesas R-Car H3 SoC Platform"
  	depends on ARCH_RENESAS
+-- 
+2.7.4
+

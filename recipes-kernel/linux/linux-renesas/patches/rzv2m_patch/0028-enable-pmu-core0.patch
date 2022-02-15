@@ -1,24 +1,37 @@
+From 0d911c8810407e4c32f1841981812a45e38ab497 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Mon, 13 Sep 2021 13:55:18 +0700
+Subject: [PATCH] enable-pmu-core0
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
-index a00295f..223375d 100755
+index fa6ddac..dc17b41 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 @@ -112,14 +112,15 @@
- 			method = "smc";
- 		};
- 	};
+                        method = "smc";
+                };
+        };
 +#endif
  
--	pmu_a53 {
-+	pmu_a53 { /* Support only for core0 not core1 */
- 		compatible = "arm,cortex-a53-pmu";
--		interrupts-extended = <&gic GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
--				      <&gic GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
--		interrupt-affinity = <&a53_0>, <&a53_1>;
-+		interrupts-extended = <&gic GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
-+		interrupt-affinity = <&a53_0>;
- 	};
+-       pmu_a53 {
++       pmu_a53 { /* Support only for core0 not core1 */
+                compatible = "arm,cortex-a53-pmu";
+-               interrupts-extended = <&gic GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
+-                                     <&gic GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+-               interrupt-affinity = <&a53_0>, <&a53_1>;
++               interrupts-extended = <&gic GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
++               interrupt-affinity = <&a53_0>;
+        };
  
 +#if 0
- 	psci {
- 		compatible = "arm,psci-1.0", "arm,psci-0.2";
- 		method = "smc";
+        psci {
+                compatible = "arm,psci-1.0", "arm,psci-0.2";
+                method = "smc";
+-- 
+2.7.4
+

@@ -1,0 +1,109 @@
+diff --git a/source/2nd_loader/inc/rdk_ddr_api.h b/source/2nd_loader/inc/rdk_ddr_api.h
+index 9676bdf..20845fa 100644
+--- a/source/2nd_loader/inc/rdk_ddr_api.h
++++ b/source/2nd_loader/inc/rdk_ddr_api.h
+@@ -59,6 +59,7 @@ int32_t MMC_WaitToDFI_NormalOperation(void);
+ void MMC_EnablePort(void);
+ int32_t DDI_InitalizePHY(void);
+ void DDI_DFI_InitComplete(void);
++void DDI_MNRT_2nd_Initsetting(void);
+ 
+ 
+ #endif  /* !defined(RDK_DDR_API_H) */
+diff --git a/source/2nd_loader/inc/rdk_ddr_reg.h b/source/2nd_loader/inc/rdk_ddr_reg.h
+index 4927ae1..11adb30 100644
+--- a/source/2nd_loader/inc/rdk_ddr_reg.h
++++ b/source/2nd_loader/inc/rdk_ddr_reg.h
+@@ -80,7 +80,8 @@
+ #define MMC_DFIMISC_DFI_INIT_START                  (1 << 5)
+ #define MMC_DFIMISC_DIS_DYN_ADR_TRI                 (1 << 6)
+ #define MMC_DFIMISC_LP_OPTIMIZED_WRITE              (1 << 7)
+-#define MMC_DFIMISC_MRT_SET                         0xFFFFF7FE
++#define MMC_DFIMISC_MRT_CLR                         0xFFFFF7FE
++#define MMC_DFIMISC_MRT_SET                         0x00000801
+ 
+ 
+ #define MMC_DFISTAT_DFI_INIT_COMPLETE               (1 << 0)
+diff --git a/source/2nd_loader/src/HardwareSetup.c b/source/2nd_loader/src/HardwareSetup.c
+index def20d6..56f7346 100644
+--- a/source/2nd_loader/src/HardwareSetup.c
++++ b/source/2nd_loader/src/HardwareSetup.c
+@@ -177,9 +177,11 @@ static int32_t PowerOn_PD_MEM_FromPOR(void)
+             break;
+         }
+ 
+-        cmn_SYS_WriteReg(0x020C, 0x01);
+ 
+-        uart0_print("[BL2] DDR initialization completed\n");
++        cmn_SYS_WriteReg(0x020C, 0x00);
++        DDI_MNRT_2nd_Initsetting();
++
++        uart0_print("[BL2] DDR initialization completed_M\n");
+ 
+         rslt = CMN_SUCCESS;
+     }
+diff --git a/source/2nd_loader/src/rdk_ddr_api.c b/source/2nd_loader/src/rdk_ddr_api.c
+index 68cb1e6..87ee143 100644
+--- a/source/2nd_loader/src/rdk_ddr_api.c
++++ b/source/2nd_loader/src/rdk_ddr_api.c
+@@ -163,9 +163,7 @@ void MMC_EnableSignal_dfi_init_complete(void)
+             (~(MMC_DFIMISC_DFI_INIT_START))));
+ 
+     MMC_WriteReg(MMC_DFIMISC,
+-        (MMC_ReadReg(MMC_DFIMISC) &
+-            (~(MMC_DFIMISC_DFI_INIT_COMPLETE_EN)))
+-        | MMC_DFIMISC_DFI_INIT_COMPLETE_EN );
++        ( (MMC_ReadReg(MMC_DFIMISC) & MMC_DFIMISC_MRT_CLR ) | MMC_DFIMISC_MRT_SET ) );
+ 
+     MMC_WriteReg(MMC_PWRCTL,
+         (MMC_ReadReg(MMC_PWRCTL) & (~MMC_PWRCTL_SELFREF_SW)));
+@@ -502,6 +500,49 @@ void DDI_DFI_InitComplete(void)
+ }
+ 
+ 
++void DDI_MNRT_2nd_Initsetting(void)
++{
++    uint32_t reg_data=0;
++
++    /*- Set No1 0xA200_0304_D0 = 1b -*/
++    MMC_WriteReg(MMC_DBG1, ( MMC_ReadReg(MMC_DBG1) | 0x01) );
++
++    /*- Set No2 0xA200_0308_D29/28 = 11b? -*/
++    reg_data = 0;
++    while( 0x30000000 != (reg_data & 0x30000000) )
++    {
++        reg_data = MMC_ReadReg(MMC_DBGCAM);
++
++        /*- Dummy wait -*/
++        asm volatile("nop");
++        asm volatile("nop");
++        asm volatile("nop");
++    }
++
++    /*- Set No3 0xA200_0320_D0 = 0b -*/
++    MMC_WriteReg(MMC_SWCTL, ( MMC_ReadReg(MMC_SWCTL) & 0xfffffffe) );
++
++    /*- Set No4 0xA200_0180_D30 = 1b -*/
++    MMC_WriteReg(MMC_CTL0, ( MMC_ReadReg(MMC_CTL0) | 0x40000000) );
++
++    /*- Set No5 0xA200_0320_D0 = 1b -*/
++    MMC_WriteReg(MMC_SWCTL, ( MMC_ReadReg(MMC_SWCTL) | 0x01) );
++
++    /*- Set No6 0xA200_0324_D0 = 1b? -*/
++    reg_data = 0;
++    while( !(reg_data & 0x01) )
++    {
++       reg_data = MMC_ReadReg(MMC_SWSTAT);
++
++        /*- Dummy wait -*/
++        asm volatile("nop");
++        asm volatile("nop");
++        asm volatile("nop");
++    }
++
++    /*- Set No7 0xA200_0304_D0 = 0b -*/
++    MMC_WriteReg(MMC_DBG1, ( MMC_ReadReg(MMC_DBG1) & 0xfffffffe) );
++}
+ 
+ 
+ /*- End of File -*/

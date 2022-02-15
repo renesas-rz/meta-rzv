@@ -1,12 +1,12 @@
 update_issue() {
     # Set BSP version
-    BSP_VERSION="1.1.0"
+    BSP_VERSION="1.2.0"
 
     # Set SoC and Board info
     case "${MACHINE}" in
     rzv2m)
       BSP_SOC="RZV2M"
-      BSP_BOARD="Evaluation Kit"
+      BSP_BOARD="Evaluation Board Kit"
       ;;
     esac
 

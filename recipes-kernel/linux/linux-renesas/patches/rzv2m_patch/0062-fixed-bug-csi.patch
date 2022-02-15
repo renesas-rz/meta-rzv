@@ -1,22 +1,35 @@
+From 50128cd44f99ab2c71bb3fb5e0baeaa71d4f2220 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 15 Sep 2021 17:30:45 +0700
+Subject: [PATCH] fixed-bug-csi
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ drivers/spi/rzv2m_csi.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
 diff --git a/drivers/spi/rzv2m_csi.c b/drivers/spi/rzv2m_csi.c
-index 4f01c7b..4625bbd 100644
+index 85439eb..14cd957 100644
 --- a/drivers/spi/rzv2m_csi.c
 +++ b/drivers/spi/rzv2m_csi.c
-@@ -545,7 +545,7 @@ static int rzv2m_csi_set_fifo_trg(struct spi_master *master, struct spi_transfer
- 	const void *tx_buf = t->tx_buf;
- 	void *rx_buf = t->rx_buf;
-     
--	if(!tx_buf){
-+	if(tx_buf != NULL){
- 		if(is_16bit_data_leng(p)){ //16 bit mode
- 			if((info->transmit_trigger_level > 4)){
- 				ret = -EINVAL;
-@@ -563,7 +563,7 @@ static int rzv2m_csi_set_fifo_trg(struct spi_master *master, struct spi_transfer
- 		}		
- 	}
- 	
--	if(!rx_buf){
-+	if(rx_buf != NULL){
- 		//setting for receive trigger level
- 		if(is_16bit_data_leng(p)){ //16 bit mode
- 			if((info->receive_trigger_level > 4)){
+@@ -544,7 +544,7 @@ static int rzv2m_csi_set_fifo_trg(struct spi_master *master, struct spi_transfer
+        const void *tx_buf = t->tx_buf;
+        void *rx_buf = t->rx_buf;
+ 
+-       if(!tx_buf){
++       if(tx_buf != NULL){
+                if(is_16bit_data_leng(p)){ //16 bit mode
+                        if((info->transmit_trigger_level > 4)){
+                                ret = -EINVAL;
+@@ -562,7 +562,7 @@ static int rzv2m_csi_set_fifo_trg(struct spi_master *master, struct spi_transfer
+                }
+        }
+ 
+-       if(!rx_buf){
++       if(rx_buf != NULL){
+                //setting for receive trigger level
+                if(is_16bit_data_leng(p)){ //16 bit mode
+                        if((info->receive_trigger_level > 4)){
+-- 
+2.7.4
+

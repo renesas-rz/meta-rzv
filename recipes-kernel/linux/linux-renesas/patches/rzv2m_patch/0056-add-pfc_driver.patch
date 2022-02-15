@@ -1,8 +1,38 @@
+From 6c8c73ae99de18e59214dcb88f902649595b5fb3 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 15 Sep 2021 16:23:45 +0700
+Subject: [PATCH] add-pfc_driver
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ .../dts/renesas/r9a09g011gbg-evaluation-board.dts  |    9 +
+ arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi      |  150 +-
+ arch/arm64/configs/defconfig                       |    1 +
+ drivers/pinctrl/Kconfig                            |    1 +
+ drivers/pinctrl/Makefile                           |    1 +
+ drivers/pinctrl/rzv2m/Kconfig                      |    5 +
+ drivers/pinctrl/rzv2m/Makefile                     |    4 +
+ drivers/pinctrl/rzv2m/core.c                       |  955 ++++++
+ drivers/pinctrl/rzv2m/core.h                       |  102 +
+ drivers/pinctrl/rzv2m/gpio.c                       |  200 ++
+ drivers/pinctrl/rzv2m/pfc-r8arzv2m.c               | 3234 ++++++++++++++++++++
+ drivers/pinctrl/rzv2m/pfc.h                        |  249 ++
+ drivers/pinctrl/rzv2m/pinctrl.c                    |  628 ++++
+ 13 files changed, 5535 insertions(+), 4 deletions(-)
+ create mode 100755 drivers/pinctrl/rzv2m/Kconfig
+ create mode 100755 drivers/pinctrl/rzv2m/Makefile
+ create mode 100755 drivers/pinctrl/rzv2m/core.c
+ create mode 100755 drivers/pinctrl/rzv2m/core.h
+ create mode 100755 drivers/pinctrl/rzv2m/gpio.c
+ create mode 100755 drivers/pinctrl/rzv2m/pfc-r8arzv2m.c
+ create mode 100755 drivers/pinctrl/rzv2m/pfc.h
+ create mode 100755 drivers/pinctrl/rzv2m/pinctrl.c
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-index 0439bd0..7dc63e3 100755
+index a23d062..d45395d 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-@@ -130,6 +130,16 @@
+@@ -131,6 +131,15 @@
      };
  };
  
@@ -15,18 +45,17 @@ index 0439bd0..7dc63e3 100755
 +    };
 +};
 +
-+
  &csi4{
      status = "okay";
      slavedev {
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
-index b92f9ee..99e5b4b 100755
+index 4f73552..f95b156 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 @@ -133,10 +133,152 @@
          #size-cells = <2>;
          ranges;
-     
+ 
 -        pfc: pin-controller@B6250000 {
 -            compatible = "renesas,pfc-r8a774c0";
 -            reg = <0 0xB6250000 0 0x2>;
@@ -181,20 +210,16 @@ index b92f9ee..99e5b4b 100755
         csi0: csi@a4020000 {
              compatible = "renesas,rzv2m-csi";
 diff --git a/arch/arm64/configs/defconfig b/arch/arm64/configs/defconfig
-index eca10ca..350348a 100755
+index eaf5bcf..a596ab0 100644
 --- a/arch/arm64/configs/defconfig
 +++ b/arch/arm64/configs/defconfig
-@@ -400,4 +400,5 @@ CONFIG_USB_MASS_STORAGE=m
- CONFIG_USB_ETH=m
+@@ -420,3 +420,4 @@ CONFIG_USB_ETH=m
  CONFIG_USB_G_SERIAL=m
  CONFIG_CSI_RZV2M=y
--CONFIG_SPI_SLAVE=y
-\ No newline at end of file
-+CONFIG_SPI_SLAVE=y
+ CONFIG_SPI_SLAVE=y
 +CONFIG_PINCTRL_RZV2M=y
-\ No newline at end of file
 diff --git a/drivers/pinctrl/Kconfig b/drivers/pinctrl/Kconfig
-index e86752b..bce81e1 100755
+index e86752b..bce81e1 100644
 --- a/drivers/pinctrl/Kconfig
 +++ b/drivers/pinctrl/Kconfig
 @@ -362,6 +362,7 @@ source "drivers/pinctrl/mediatek/Kconfig"
@@ -206,15 +231,15 @@ index e86752b..bce81e1 100755
  config PINCTRL_XWAY
  	bool
 diff --git a/drivers/pinctrl/Makefile b/drivers/pinctrl/Makefile
-index 46ef9bd..4cb997f 100755
+index 46ef9bd..6c50f7d 100644
 --- a/drivers/pinctrl/Makefile
 +++ b/drivers/pinctrl/Makefile
 @@ -65,3 +65,4 @@ obj-$(CONFIG_ARCH_VT8500)	+= vt8500/
  obj-y				+= mediatek/
  obj-$(CONFIG_PINCTRL_ZX)	+= zte/
  obj-y				+= cirrus/
-+obj-y				+= rzv2m/
-diff --git b/drivers/pinctrl/rzv2m/Kconfig b/drivers/pinctrl/rzv2m/Kconfig
++obj-y                          += rzv2m/
+diff --git a/drivers/pinctrl/rzv2m/Kconfig b/drivers/pinctrl/rzv2m/Kconfig
 new file mode 100755
 index 0000000..8be09dd
 --- /dev/null
@@ -225,7 +250,7 @@ index 0000000..8be09dd
 +	select GPIOLIB
 +	help
 +		Enable pin controller for RZ/V2M
-diff --git b/drivers/pinctrl/rzv2m/Makefile b/drivers/pinctrl/rzv2m/Makefile
+diff --git a/drivers/pinctrl/rzv2m/Makefile b/drivers/pinctrl/rzv2m/Makefile
 new file mode 100755
 index 0000000..01353b2
 --- /dev/null
@@ -235,7 +260,7 @@ index 0000000..01353b2
 +pfc-rzv2m-objs	+=	pfc-r8arzv2m.o
 +
 +obj-$(CONFIG_PINCTRL_RZV2M)	+= pfc-rzv2m.o
-diff --git b/drivers/pinctrl/rzv2m/core.c b/drivers/pinctrl/rzv2m/core.c
+diff --git a/drivers/pinctrl/rzv2m/core.c b/drivers/pinctrl/rzv2m/core.c
 new file mode 100755
 index 0000000..ba41f61
 --- /dev/null
@@ -1196,9 +1221,9 @@ index 0000000..ba41f61
 +
 +postcore_initcall(rzv2m_pfc_init);
 +subsys_initcall(rzv2m_gpio_init);
-diff --git b/drivers/pinctrl/rzv2m/core.h b/drivers/pinctrl/rzv2m/core.h
+diff --git a/drivers/pinctrl/rzv2m/core.h b/drivers/pinctrl/rzv2m/core.h
 new file mode 100755
-index 0000000..e4f2e3f
+index 0000000..e4f2e3fd
 --- /dev/null
 +++ b/drivers/pinctrl/rzv2m/core.h
 @@ -0,0 +1,102 @@
@@ -1304,7 +1329,7 @@ index 0000000..e4f2e3f
 +extern const struct rzv2m_pfc_info r8arzv2m_pinmux_info;
 +extern struct rzv2m_pfc_ops rzv2m_pfc_ops_map;
 +#endif
-diff --git b/drivers/pinctrl/rzv2m/gpio.c b/drivers/pinctrl/rzv2m/gpio.c
+diff --git a/drivers/pinctrl/rzv2m/gpio.c b/drivers/pinctrl/rzv2m/gpio.c
 new file mode 100755
 index 0000000..0d355bb
 --- /dev/null
@@ -1510,7 +1535,7 @@ index 0000000..0d355bb
 +		gpiochip_remove(chip);
 +	}
 +}
-diff --git b/drivers/pinctrl/rzv2m/pfc-r8arzv2m.c b/drivers/pinctrl/rzv2m/pfc-r8arzv2m.c
+diff --git a/drivers/pinctrl/rzv2m/pfc-r8arzv2m.c b/drivers/pinctrl/rzv2m/pfc-r8arzv2m.c
 new file mode 100755
 index 0000000..87129c3
 --- /dev/null
@@ -4750,7 +4775,7 @@ index 0000000..87129c3
 +	.nr_config_regs = ARRAY_SIZE(config_regs),
 +	.nr_irq_regs = ARRAY_SIZE(irq_regs),
 +};
-diff --git b/drivers/pinctrl/rzv2m/pfc.h b/drivers/pinctrl/rzv2m/pfc.h
+diff --git a/drivers/pinctrl/rzv2m/pfc.h b/drivers/pinctrl/rzv2m/pfc.h
 new file mode 100755
 index 0000000..b26c452
 --- /dev/null
@@ -5005,7 +5030,7 @@ index 0000000..b26c452
 +	u32 nr_funcs;
 +};
 +#endif
-diff --git b/drivers/pinctrl/rzv2m/pinctrl.c b/drivers/pinctrl/rzv2m/pinctrl.c
+diff --git a/drivers/pinctrl/rzv2m/pinctrl.c b/drivers/pinctrl/rzv2m/pinctrl.c
 new file mode 100755
 index 0000000..e2b2de7
 --- /dev/null
@@ -5639,3 +5664,6 @@ index 0000000..e2b2de7
 +	}
 +	return pinctrl_enable(pin_ctl->pctl);
 +}
+-- 
+2.7.4
+

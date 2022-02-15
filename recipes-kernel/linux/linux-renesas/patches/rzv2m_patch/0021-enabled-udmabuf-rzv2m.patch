@@ -1,46 +1,63 @@
+From 4e19494f1c6016f08594748a50cf039d746880ae Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Mon, 13 Sep 2021 13:05:24 +0700
+Subject: [PATCH] enabled-udmabuf-rzv2m
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ .../dts/renesas/r9a09g011gbg-evaluation-board.dts  |   16 +
+ drivers/Kconfig                                    |    2 +
+ drivers/Makefile                                   |    2 +
+ drivers/udmabuf/Kconfig                            |   19 +
+ drivers/udmabuf/LICENSE                            |   25 +
+ drivers/udmabuf/Makefile                           |    3 +
+ drivers/udmabuf/Readme.ja.md                       | 1383 ++++++++++++++++
+ drivers/udmabuf/Readme.md                          | 1239 +++++++++++++++
+ drivers/udmabuf/udmabuf.c                          | 1664 ++++++++++++++++++++
+ drivers/udmabuf/udmabuf_test.c                     |  189 +++
+ 10 files changed, 4542 insertions(+)
+ create mode 100644 drivers/udmabuf/Kconfig
+ create mode 100644 drivers/udmabuf/LICENSE
+ create mode 100644 drivers/udmabuf/Makefile
+ create mode 100644 drivers/udmabuf/Readme.ja.md
+ create mode 100644 drivers/udmabuf/Readme.md
+ create mode 100644 drivers/udmabuf/udmabuf.c
+ create mode 100644 drivers/udmabuf/udmabuf_test.c
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-index 886051b..94acafe 100755
+index 80e915e..9be1c79 100644
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg-evaluation-board.dts
-@@ -47,6 +47,13 @@
- 			reusable;
- 			reg = <0x00000000 0x28000000 0x0 0x08000000>;
- 		};
+@@ -46,6 +46,13 @@
+                        reusable;
+                        reg = <0x00000000 0x28000000 0x0 0x08000000>;
+                };
 +
-+		v4l2_reserved: v4l2-DRP_buf@0 {
-+			compatible = "shared-dma-pool";
-+			reusable;
-+			reg = <0x0 0x30000000 0x0 0x08000000>; //128MiB
-+			label = "image_buf0";
-+		};
++               v4l2_reserved: v4l2-DRP_buf@0 {
++                       compatible = "shared-dma-pool";
++                       reusable;
++                       reg = <0x0 0x30000000 0x0 0x08000000>; //128MiB
++                       label = "image_buf0";
++               };
  #if 0
- 		/* device specific region for contiguous allocations */
- 		mmp_reserved: linux,multimedia {
-@@ -57,6 +64,15 @@
+                /* device specific region for contiguous allocations */
+                mmp_reserved: linux,multimedia {
+@@ -56,6 +63,15 @@
  #endif
- 	};
+        };
  
-+	udmabuf@0 {
-+		compatible = "ikwzm,udmabuf-0.10.a";
-+		device-name = "udmabuf0";
-+		minor-number = <0>;
-+		size = <0x08000000>; // 128MiB
-+		dma-coherent;
-+		memory-region = <&v4l2_reserved>;
-+	};
++       udmabuf@0 {
++               compatible = "ikwzm,udmabuf-0.10.a";
++               device-name = "udmabuf0";
++               minor-number = <0>;
++               size = <0x08000000>; // 128MiB
++               dma-coherent;
++               memory-region = <&v4l2_reserved>;
++       };
 +
- 	mmngr {
- 		compatible = "renesas,mmngr";
- /*		memory-region = <&mmp_reserved>; */
-diff --git a/arch/arm64/configs/defconfig b/arch/arm64/configs/defconfig
-index 26ad1fb..a569da3 100755
---- a/arch/arm64/configs/defconfig
-+++ b/arch/arm64/configs/defconfig
-@@ -389,3 +389,4 @@ CONFIG_DEVFREQ_GOV_USERSPACE=y
- CONFIG_DEVFREQ_GOV_PASSIVE=y
- CONFIG_RENESAS_MFIS_ECC=y
- CONFIG_E1000E=y
-+CONFIG_U_DMA_BUF=y
+        mmngr {
+                compatible = "renesas,mmngr";
+ /*             memory-region = <&mmp_reserved>; */
 diff --git a/drivers/Kconfig b/drivers/Kconfig
 index ab4d439..b06aaeb 100644
 --- a/drivers/Kconfig
@@ -53,16 +70,16 @@ index ab4d439..b06aaeb 100644
 +
  endmenu
 diff --git a/drivers/Makefile b/drivers/Makefile
-index 578f469..d384719 100644
+index 578f469..925b346 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
 @@ -186,3 +186,5 @@ obj-$(CONFIG_MULTIPLEXER)	+= mux/
  obj-$(CONFIG_UNISYS_VISORBUS)	+= visorbus/
  obj-$(CONFIG_SIOX)		+= siox/
  obj-$(CONFIG_GNSS)		+= gnss/
-+obj-$(CONFIG_U_DMA_BUF)	+= udmabuf/
++obj-$(CONFIG_U_DMA_BUF)        += udmabuf/
 +
-diff --git b/drivers/udmabuf/Kconfig b/drivers/udmabuf/Kconfig
+diff --git a/drivers/udmabuf/Kconfig b/drivers/udmabuf/Kconfig
 new file mode 100644
 index 0000000..d86b23a
 --- /dev/null
@@ -87,9 +104,9 @@ index 0000000..d86b23a
 +	  If you don't know what to do here, say N.
 +
 +endmenu
-diff --git b/drivers/udmabuf/LICENSE b/drivers/udmabuf/LICENSE
+diff --git a/drivers/udmabuf/LICENSE b/drivers/udmabuf/LICENSE
 new file mode 100644
-index 0000000..7536249
+index 0000000..75362493
 --- /dev/null
 +++ b/drivers/udmabuf/LICENSE
 @@ -0,0 +1,25 @@
@@ -118,7 +135,7 @@ index 0000000..7536249
 +CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 +OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 +OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-diff --git b/drivers/udmabuf/Makefile b/drivers/udmabuf/Makefile
+diff --git a/drivers/udmabuf/Makefile b/drivers/udmabuf/Makefile
 new file mode 100644
 index 0000000..fc96ae2
 --- /dev/null
@@ -127,7 +144,7 @@ index 0000000..fc96ae2
 +u-dma-buf-obj           := udmabuf.o
 +obj-$(CONFIG_U_DMA_BUF) += $(u-dma-buf-obj)
 +
-diff --git b/drivers/udmabuf/Readme.ja.md b/drivers/udmabuf/Readme.ja.md
+diff --git a/drivers/udmabuf/Readme.ja.md b/drivers/udmabuf/Readme.ja.md
 new file mode 100644
 index 0000000..9ab9b2d
 --- /dev/null
@@ -1516,7 +1533,7 @@ index 0000000..9ab9b2d
 +8388608
 +>>>
 +```
-diff --git b/drivers/udmabuf/Readme.md b/drivers/udmabuf/Readme.md
+diff --git a/drivers/udmabuf/Readme.md b/drivers/udmabuf/Readme.md
 new file mode 100644
 index 0000000..32ef6bb
 --- /dev/null
@@ -2761,7 +2778,7 @@ index 0000000..32ef6bb
 +>>>
 +```
 +
-diff --git b/drivers/udmabuf/udmabuf.c b/drivers/udmabuf/udmabuf.c
+diff --git a/drivers/udmabuf/udmabuf.c b/drivers/udmabuf/udmabuf.c
 new file mode 100644
 index 0000000..969c361
 --- /dev/null
@@ -4431,7 +4448,7 @@ index 0000000..969c361
 +
 +module_init(udmabuf_module_init);
 +module_exit(udmabuf_module_exit);
-diff --git b/drivers/udmabuf/udmabuf_test.c b/drivers/udmabuf/udmabuf_test.c
+diff --git a/drivers/udmabuf/udmabuf_test.c b/drivers/udmabuf/udmabuf_test.c
 new file mode 100644
 index 0000000..eb59a88
 --- /dev/null
@@ -4626,3 +4643,6 @@ index 0000000..eb59a88
 +    clear_buf_test(buf_size, 7, 0);
 +    clear_buf_test(buf_size, 7, O_SYNC);
 +}
+-- 
+2.7.4
+

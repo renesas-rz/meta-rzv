@@ -1,27 +1,66 @@
+From ca8ee5b827a053f2a8905e7654e742400ac1581e Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 15 Sep 2021 11:07:18 +0700
+Subject: [PATCH] modified-gic-set-affinity
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ drivers/irqchip/irq-gic.c | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)
+
 diff --git a/drivers/irqchip/irq-gic.c b/drivers/irqchip/irq-gic.c
-index 917ca1f..a21608b 100755
+index 766a1d1..a21608b 100644
 --- a/drivers/irqchip/irq-gic.c
 +++ b/drivers/irqchip/irq-gic.c
-@@ -328,7 +328,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
+@@ -326,8 +326,10 @@ static int gic_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
+ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
+ 			    bool force)
  {
- 	void __iomem *reg = gic_dist_base(d) + GIC_DIST_TARGET + (gic_irq(d) & ~3);
- 	unsigned int cpu, shift = (gic_irq(d) % 4) * 8;
--	u32 val, mask, bit;
+-	void __iomem *reg = gic_dist_base(d) + GIC_DIST_TARGET + gic_irq(d);
+-	unsigned int cpu;
++	void __iomem *reg = gic_dist_base(d) + GIC_DIST_TARGET + (gic_irq(d) & ~3);
++	unsigned int cpu, shift = (gic_irq(d) % 4) * 8;
 +	u32 val, bit;
- 	unsigned long flags;
++	unsigned long flags;
  
  	if (!force)
-@@ -340,10 +340,9 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
+ 		cpu = cpumask_any_and(mask_val, cpu_online_mask);
+@@ -337,7 +339,12 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
+ 	if (cpu >= NR_GIC_CPU_IF || cpu >= nr_cpu_ids)
  		return -EINVAL;
  
- 	gic_lock_irqsave(flags);
--	mask = 0xff << shift;
--	bit = gic_cpu_map[cpu] << shift;
--	val = readl_relaxed(reg) & ~mask;
--	writel_relaxed(val | bit, reg);
+-	writeb_relaxed(gic_cpu_map[cpu], reg);
++	gic_lock_irqsave(flags);
 +    bit = gic_cpu_map[cpu] << shift;
 +	val = readl_relaxed(reg) | bit;
 +	writel_relaxed(val, reg);
- 	gic_unlock_irqrestore(flags);
- 
++	gic_unlock_irqrestore(flags);
++
  	irq_data_update_effective_affinity(d, cpumask_of(cpu));
+ 
+ 	return IRQ_SET_MASK_OK_DONE;
+@@ -495,16 +502,16 @@ static void gic_dist_init(struct gic_chip_data *gic)
+ 	for (i = 32; i < gic_irqs; i += 4)
+ 		writel_relaxed(cpumask, base + GIC_DIST_TARGET + i * 4 / 4);
+ 
+-       /*
+-        * Set all global interrupts to CPU #0 and #1 for RZ/V2M.
+-        */
++	/*
++	 * Set all global interrupts to CPU #0 and #1 for RZ/V2M.
++	 */
+     {
+         unsigned int cnt, t_size;
+         t_size = sizeof(gic_init_target) / sizeof(u32);
+-       for (cnt = 0; cnt < t_size; cnt++)
++    	for (cnt = 0; cnt < t_size; cnt++)
+             writel_relaxed(gic_init_target[cnt], base + GIC_DIST_TARGET + (0x20+(cnt*4)));
+     }
+-
++    
+ 	gic_dist_config(base, gic_irqs, NULL);
+ 
+ 	writel_relaxed(GICD_ENABLE, base + GIC_DIST_CTRL);
+-- 
+2.7.4
+

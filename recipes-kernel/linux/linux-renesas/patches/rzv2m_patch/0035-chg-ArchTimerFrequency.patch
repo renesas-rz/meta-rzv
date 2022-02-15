@@ -1,5 +1,15 @@
+From 50d53b60a9c0bd8189e8be9ad133f98ba08e8e12 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 18 Aug 2021 14:42:16 +0700
+Subject: [PATCH] chg ArchTimerFrequency
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi | 1 +
+ 1 file changed, 1 insertion(+)
+
 diff --git a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
-index 477b2a1..caa0d25 100755
+index adfde9e..3cddfed 100755
 --- a/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 +++ b/arch/arm64/boot/dts/renesas/r9a09g011gbg.dtsi
 @@ -112,6 +112,7 @@
@@ -10,3 +20,6 @@ index 477b2a1..caa0d25 100755
      };
  
      soc: soc {
+-- 
+2.7.4
+

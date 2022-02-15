@@ -1,6 +1,17 @@
+From f7894193708ab2e955d71d1c1b3b946eeaf55c88 Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Fri, 10 Sep 2021 16:56:52 +0700
+Subject: [PATCH] include-dt-bindings-power-rzv2m
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ include/dt-bindings/power/r9a09g011gbg-sysc.h | 35 +++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)
+ create mode 100644 include/dt-bindings/power/r9a09g011gbg-sysc.h
+
 diff --git a/include/dt-bindings/power/r9a09g011gbg-sysc.h b/include/dt-bindings/power/r9a09g011gbg-sysc.h
-new file mode 100755
-index 0000000..07ee610
+new file mode 100644
+index 0000000..bea3e77
 --- /dev/null
 +++ b/include/dt-bindings/power/r9a09g011gbg-sysc.h
 @@ -0,0 +1,35 @@
@@ -17,25 +28,28 @@ index 0000000..07ee610
 + * (e.g. SYSCISR, Interrupt Status Register)
 + */
 +
-+#define R8ARZV2M_PMC_INT_IDLE_DONE		0
-+#define R8ARZV2M_PMC_INT_PD_DONE		1
-+#define R8ARZV2M_PMC_INT_CR8_STBY		2
-+#define R8ARZV2M_PMC_INT_CPU0_STBY		3
-+#define R8ARZV2M_PMC_INT_CPU1_STBY		4
-+#define R8ARZV2M_PMC_INT_L2_STBY		5
++#define R8ARZV2M_PMC_INT_IDLE_DONE             0
++#define R8ARZV2M_PMC_INT_PD_DONE               1
++#define R8ARZV2M_PMC_INT_CR8_STBY              2
++#define R8ARZV2M_PMC_INT_CPU0_STBY             3
++#define R8ARZV2M_PMC_INT_CPU1_STBY             4
++#define R8ARZV2M_PMC_INT_L2_STBY               5
 +
 +/* Always-on power area */
-+#define R8ARZV2M_PMC_INT_ALWAYS_ON		32
++#define R8ARZV2M_PMC_INT_ALWAYS_ON             32
 +
-+#define R8A774C0_PD_CA53_CPU0		5
-+#define R8A774C0_PD_CA53_CPU1		6
-+#define R8A774C0_PD_A3VC		14
-+#define R8A774C0_PD_3DG_A		17
-+#define R8A774C0_PD_3DG_B		18
-+#define R8A774C0_PD_CA53_SCU		21
-+#define R8A774C0_PD_A2VC1		26
++#define R8A774C0_PD_CA53_CPU0          5
++#define R8A774C0_PD_CA53_CPU1          6
++#define R8A774C0_PD_A3VC               14
++#define R8A774C0_PD_3DG_A              17
++#define R8A774C0_PD_3DG_B              18
++#define R8A774C0_PD_CA53_SCU           21
++#define R8A774C0_PD_A2VC1              26
 +
 +/* Always-on power area */
-+#define R8A774C0_PD_ALWAYS_ON		32
++#define R8A774C0_PD_ALWAYS_ON          32
 +
 +#endif /* __DT_BINDINGS_POWER_R9A09G011GBG_SYSC_H__ */
+-- 
+2.7.4
+

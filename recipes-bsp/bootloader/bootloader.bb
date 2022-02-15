@@ -3,7 +3,7 @@ SECTION = "Loader"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-PV = "v1.1.0"
+PV = "v1.2.0"
 PR = "r1"
 
 S = "${WORKDIR}"
@@ -24,11 +24,9 @@ do_compile() {
 do_install() {
 	install -d ${D}/boot
 	install -m 755 ${S}/source/loader_1st.bin ${D}/boot/loader_1st.bin
-	install -m 755 ${S}/source/loader_1st.elf ${D}/boot/loader_1st.elf
 	install -m 755 ${S}/source/loader_1st_128kb.bin ${D}/boot/loader_1st_128kb.bin
 	install -m 755 ${S}/source/loader_2nd.bin ${D}/boot/loader_2nd.bin
 	install -m 755 ${S}/source/loader_2nd_param.bin ${D}/boot/loader_2nd_param.bin
-	install -m 755 ${S}/source/loader_2nd.elf ${D}/boot/loader_2nd.elf
 }
 
 do_deploy() {

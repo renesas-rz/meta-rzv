@@ -1,0 +1,20 @@
+diff --git a/drivers/mmc/host/renesas_sdhi_core.c b/drivers/mmc/host/renesas_sdhi_core.c
+index 3daa4e9..7cd43af 100644
+--- a/drivers/mmc/host/renesas_sdhi_core.c
++++ b/drivers/mmc/host/renesas_sdhi_core.c
+@@ -34,6 +34,7 @@
+ #include <linux/delay.h>
+ #include <linux/regulator/consumer.h>
+ #include <linux/sys_soc.h>
++#include <linux/dma-mapping.h>
+ 
+ #include "renesas_sdhi.h"
+ #include "tmio_mmc.h"
+@@ -901,6 +902,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
+ 	if (!priv)
+ 		return -ENOMEM;
+ 
++	dma_set_mask_and_coherent(&pdev->dev,DMA_BIT_MASK(34));  //34bit extension for rzv2m
+ 	priv->quirks = quirks;
+ 	mmc_data = &priv->mmc_data;
+ 	dma_priv = &priv->dma_priv;

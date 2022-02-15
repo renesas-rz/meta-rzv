@@ -1,0 +1,20 @@
+diff --git a/arch/arm/dts/r9a09g011gbg-rzv2m.dts b/arch/arm/dts/r9a09g011gbg-rzv2m.dts
+index ba645fa..1f73ab7 100755
+--- a/arch/arm/dts/r9a09g011gbg-rzv2m.dts
++++ b/arch/arm/dts/r9a09g011gbg-rzv2m.dts
+@@ -21,10 +21,14 @@
+ 		bootargs = "ignore_loglevel";
+ 	};
+ 
+-	memory@48000000 {
++	memory@0 {
+ 		device_type = "memory";
+ 		reg = <0x0 0x00000000 0x0 0x80000000>;
+ 	};
++	memory@180000000 {
++		device_type = "memory";
++		reg = <0x1 0x80000000 0x0 0x80000000>;
++	};
+ 
+ 	reg_3p3v: regulator1 {
+ 		compatible = "regulator-fixed";

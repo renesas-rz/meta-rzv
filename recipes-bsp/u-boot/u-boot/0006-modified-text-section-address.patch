@@ -1,0 +1,12 @@
+diff --git a/configs/r9a09g011gbg_rzv2m_defconfig b/configs/r9a09g011gbg_rzv2m_defconfig
+index 5d261dd..a36dafd 100644
+--- a/configs/r9a09g011gbg_rzv2m_defconfig
++++ b/configs/r9a09g011gbg_rzv2m_defconfig
+@@ -1,6 +1,6 @@
+ CONFIG_ARM=y
+ CONFIG_ARCH_RMOBILE=y
+-CONFIG_SYS_TEXT_BASE=0x57F00000
++CONFIG_SYS_TEXT_BASE=0x7C000000
+ CONFIG_SYS_MALLOC_F_LEN=0x2000
+ CONFIG_RCAR_64=y
+ CONFIG_R9A09G011GBG=y

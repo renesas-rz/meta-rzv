@@ -1,48 +1,61 @@
+From 22a105c27b151e3d71402d07ddad8a70d52067ca Mon Sep 17 00:00:00 2001
+From: Canh Dao <canh.dao.ct@renesas.com>
+Date: Wed, 15 Sep 2021 09:24:43 +0700
+Subject: [PATCH] add-usbrole-setting
+
+Signed-off-by: Canh Dao <canh.dao.ct@renesas.com>
+---
+ drivers/usb/host/xhci-rzv2m.c | 24 +++++++++---------------
+ 1 file changed, 9 insertions(+), 15 deletions(-)
+
 diff --git a/drivers/usb/host/xhci-rzv2m.c b/drivers/usb/host/xhci-rzv2m.c
-index dfb071d..9c8cb92 100755
+index 8c489c7..23a160f 100644
 --- a/drivers/usb/host/xhci-rzv2m.c
 +++ b/drivers/usb/host/xhci-rzv2m.c
 @@ -57,21 +57,11 @@ int xhci_rzv2m_drd_init(struct usb_hcd *hcd)
  {
- 	/* DRD INIT */
- 	u32 temp;
+        /* DRD INIT */
+        u32 temp;
 -
- 	if (hcd->regs != NULL) {
--		/* perecon hostcon reset */
--		temp = readl(hcd->regs + RZV2M_DRD_HC_OFFSET +
--				RZV2M_DRD_DRDCON);
--		temp |= (RZV2M_DRD_PERI_RST | RZV2M_DRD_HOST_RST);
--		writel(temp, hcd->regs + RZV2M_DRD_HC_OFFSET +
--				RZV2M_DRD_DRDCON);
+        if (hcd->regs != NULL) {
+-               /* perecon hostcon reset */
+-               temp = readl(hcd->regs + RZV2M_DRD_HC_OFFSET +
+-                               RZV2M_DRD_DRDCON);
+-               temp |= (RZV2M_DRD_PERI_RST | RZV2M_DRD_HOST_RST);
+-               writel(temp, hcd->regs + RZV2M_DRD_HC_OFFSET +
+-                               RZV2M_DRD_DRDCON);
 -
--		/* Host role setting */
--		temp = readl(hcd->regs + RZV2M_DRD_HC_OFFSET +
--				RZV2M_DRD_DRDCON);
--		temp &= ~(RZV2M_DRD_PERICON | RZV2M_DRD_HOST_RST);
--		writel(temp, hcd->regs + RZV2M_DRD_HC_OFFSET +
--				RZV2M_DRD_DRDCON);
-+		temp = readl(hcd->regs + RZV2M_DRD_HC_OFFSET);
-+		if(temp != RZV2M_DRD_PERI_RST){
-+			return -EFAULT;
-+		}
- 	}
- 	return 0;
+-               /* Host role setting */
+-               temp = readl(hcd->regs + RZV2M_DRD_HC_OFFSET +
+-                               RZV2M_DRD_DRDCON);
+-               temp &= ~(RZV2M_DRD_PERICON | RZV2M_DRD_HOST_RST);
+-               writel(temp, hcd->regs + RZV2M_DRD_HC_OFFSET +
+-                               RZV2M_DRD_DRDCON);
++               temp = readl(hcd->regs + RZV2M_DRD_HC_OFFSET);
++               if(temp != RZV2M_DRD_PERI_RST){
++                       return -EFAULT;
++               }
+        }
+        return 0;
  }
 @@ -114,12 +104,16 @@ void xhci_rzv2m_usbtest_init(struct usb_hcd *hcd)
  void xhci_rzv2m_start(struct usb_hcd *hcd)
  {
- 	u32 temp;
+        u32 temp;
 -
- 	if (hcd->regs != NULL) {
- 		/* Interrupt Enable */
- 		temp = readl(hcd->regs + RZV2M_USB3_INTEN);
- 		temp |= RZV2M_USB3_INT_ENA_VAL;
- 		writel(temp, hcd->regs + RZV2M_USB3_INTEN);
- 	}
-+	else{
-+		return -EFAULT;
-+	}
-+	
-+	return 0;
+        if (hcd->regs != NULL) {
+                /* Interrupt Enable */
+                temp = readl(hcd->regs + RZV2M_USB3_INTEN);
+                temp |= RZV2M_USB3_INT_ENA_VAL;
+                writel(temp, hcd->regs + RZV2M_USB3_INTEN);
+        }
++       else{
++               return -EFAULT;
++       }
++
++       return 0;
  }
  
+-- 
+2.7.4
+
