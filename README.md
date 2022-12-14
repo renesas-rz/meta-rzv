@@ -1,3 +1,7 @@
+**This branch will no more be updated. Go to the following repository "meta-renesas". The branch is "rzv2m".**
+
+https://github.com/renesas-rz/meta-renesas/tree/dunfell/rzv2m
+
 # **rocko/rzv2m**  
 
 This is a Yocto build layer that provides support for RZ/V2M from Renesas Electronics.  
